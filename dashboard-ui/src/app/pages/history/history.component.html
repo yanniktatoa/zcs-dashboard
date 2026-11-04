@@ -1,0 +1,56 @@
+<div class="flex align-items-center gap-3 mb-3">
+  <p-selectButton [options]="modes" [(ngModel)]="selectedMode"
+    optionLabel="label" optionValue="value" (onChange)="load()"></p-selectButton>
+</div>
+
+<div *ngIf="alerts.length > 0" class="alert-banner mb-3">
+  <i class="pi pi-exclamation-triangle"></i>
+  <span class="alert-count">{{ alerts.length }} alerte(s) de régression</span>
+  <ng-container *ngFor="let a of alerts">
+    <span class="alert-sep">—</span>
+    <strong class="alert-service">{{ a.service }}</strong>
+    <span class="alert-metric mono">{{ a.metric }} {{ a.previousValue?.toFixed(2) }}s → {{ a.currentValue?.toFixed(2) }}s</span>
+    <span class="tag-critical">+{{ a.changePercent }}%</span>
+  </ng-container>
+</div>
+
+<div class="grid">
+  <div class="col-6">
+    <div class="section-card">
+      <p class="section-title">Historique cold start</p>
+      <div *ngFor="let h of getColdHistory()" class="history-svc mb-3">
+        <div class="flex align-items-center justify-content-between mb-2">
+          <strong class="svc-title">{{ h.service }}</strong>
+          <span class="run-badge">{{ h.dataPoints.length }} runs</span>
+        </div>
+        <div class="spark-row">
+          <svg width="120" height="32" viewBox="0 0 120 32" class="sparkline">
+            <path [attr.d]="getSparklinePath(h.dataPoints)" fill="none"
+              [attr.stroke]="hasAlert(h.dataPoints) ? 'var(--zcs-danger)' : 'var(--zcs-accent)'"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle [attr.cx]="getSparklineLastPoint(h.dataPoints).x" [attr.cy]="getSparklineLastPoint(h.dataPoints).y" r="2.5"
+              [attr.fill]="hasAlert(h.dataPoints) ? 'var(--zcs-danger)' : 'var(--zcs-accent)'"/>
+          </svg>
+          <div class="spark-value">
+            <span class="spark-num" [class.spark-danger]="h.dataPoints[0]?.regression">{{ h.dataPoints[0]?.value?.toFixed(2) }}s</span>
+            <span *ngIf="h.dataPoints[0]?.regression" class="tag-critical">reg.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="section-card">
+      <p class="section-title">Tendances globales</p>
+      <div *ngFor="let svc of services" class="trend-svc mb-3">
+        <strong class="trend-svc-title">{{ svc }}</strong>
+        <div *ngFor="let m of metrics" class="trend-row">
+          <span class="trend-metric">{{ m }}</span>
+          <i [class]="getTrendIcon(getTrend(svc,m).label)"></i>
+          <span class="trend-status" [class]="getTrendClass(getTrend(svc,m).label)">{{ getTrend(svc,m).label }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

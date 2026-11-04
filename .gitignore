@@ -1,0 +1,24 @@
+# Build
+target/
+dist/
+.angular/
+node_modules/
+*.jar
+
+# Sauvegardes et temporaires
+*.backup
+app.backup/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets
+.env
+*.pem
+*.key
+
+# Résultats bruts
+benchmark-results/

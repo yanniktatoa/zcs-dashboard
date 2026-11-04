@@ -1,0 +1,45 @@
+<p-toast></p-toast>
+<div class="section-card mb-3" style="height:280px">
+  <div class="flex align-items-center justify-content-between mb-3">
+    <div>
+      <p class="section-title mb-0">Cold start — JVM vs Native Image</p>
+      <p class="chart-subtitle">Temps de démarrage à froid par service, en secondes</p>
+    </div>
+    <div class="flex gap-2">
+      <button pButton label="Export PDF" icon="pi pi-file-pdf" size="small"
+        class="p-button-outlined export-btn" [disabled]="exporting" (click)="exportPdf()"></button>
+      <button pButton label="Export LaTeX" icon="pi pi-code" size="small"
+        class="p-button-outlined export-btn" (click)="exportLatex()"></button>
+    </div>
+  </div>
+  <p-chart type="bar" [data]="chartData" [options]="chartOptions" height="195px"></p-chart>
+</div>
+
+<div class="section-card">
+  <p class="section-title">Tableau comparatif détaillé</p>
+  <p-table [value]="services" [loading]="loading" styleClass="p-datatable-sm p-datatable-gridlines">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Service</th>
+        <th style="text-align:right">JVM startup</th><th style="text-align:right">Native startup</th><th style="text-align:right">Gain</th>
+        <th style="text-align:right">JVM cold</th><th style="text-align:right">Native cold</th><th style="text-align:right">Gain</th>
+        <th style="text-align:right">JVM mem</th><th style="text-align:right">Native mem</th><th style="text-align:right">Gain</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-svc>
+      <tr>
+        <td><strong>{{ svc }}</strong></td>
+        <td style="text-align:right" class="text-muted mono">{{ comparison[svc]?.jvmStartupMs ? (comparison[svc].jvmStartupMs/1000).toFixed(1)+'s' : '—' }}</td>
+        <td style="text-align:right" class="text-success mono">{{ comparison[svc]?.nativeStartupMs ? (comparison[svc].nativeStartupMs/1000).toFixed(1)+'s' : '—' }}</td>
+        <td style="text-align:right"><span class="gain-badge" [class.gain-strong]="(comparison[svc]?.startupGainX||0) >= 10">x{{ comparison[svc]?.startupGainX||'—' }}</span></td>
+        <td style="text-align:right" class="text-muted mono">{{ comparison[svc]?.jvmColdStartS?.toFixed(1)||'—' }}s</td>
+        <td style="text-align:right" class="text-success mono">{{ comparison[svc]?.nativeColdStartS?.toFixed(2)||'—' }}s</td>
+        <td style="text-align:right"><span class="gain-badge-muted">x{{ comparison[svc]?.coldStartGainX||'—' }}</span></td>
+        <td style="text-align:right" class="text-muted mono">{{ comparison[svc]?.jvmMemoryMi||'—' }} Mi</td>
+        <td style="text-align:right" class="text-success mono">{{ comparison[svc]?.nativeMemoryMi||'—' }} Mi</td>
+        <td style="text-align:right"><span class="gain-badge-muted">{{ comparison[svc]?.memoryGainPct ? comparison[svc].memoryGainPct+'%' : '—' }}</span></td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+

@@ -1,0 +1,33 @@
+:host { display: block; }
+
+.chart-subtitle {
+  font-size: 0.75rem;
+  color: var(--zcs-text-muted);
+  margin: 0.15rem 0 0;
+}
+
+.export-btn {
+  color: var(--zcs-text-secondary) !important;
+  border-color: var(--zcs-border-strong) !important;
+  background: var(--zcs-surface) !important;
+
+  &:hover { background: var(--zcs-border) !important; }
+}
+
+.gain-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 9px;
+  border-radius: 6px;
+  background: rgba(94, 234, 212, 0.12);
+  color: var(--zcs-accent);
+}
+
+.gain-badge-muted {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--zcs-text-secondary);
+}

@@ -1,0 +1,47 @@
+services:
+  app:
+    build: .
+    container_name: user-app
+    env_file: .env
+    ports: ["${APP_PORT}:8082"]
+    depends_on: [db, redis]
+    environment:
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      LOAN_SERVICE_URL: http://loan-app:8083
+    networks: [user-net, loan-service_loan-net]
+
+  db:
+    image: mysql:8.0
+    container_name: user-db
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    networks: [user-net]
+
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    container_name: user-phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${PMA_PORT}:80"
+    depends_on: [db]
+    networks: [user-net]
+
+  redis:
+    image: redis:7.4
+    container_name: user-redis
+    ports: ["6381:6379"]
+    networks: [user-net]
+
+networks:
+  user-net:
+    driver: bridge
+  loan-service_loan-net:
+    external: true

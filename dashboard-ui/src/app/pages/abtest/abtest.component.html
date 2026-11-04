@@ -1,0 +1,73 @@
+<p-toast></p-toast>
+<div class="grid">
+  <div class="col-4">
+    <div class="section-card">
+      <p class="section-title">Configuration du test A/B</p>
+      <label class="field-label">Service</label>
+      <p-dropdown [options]="services" [(ngModel)]="state.serviceName" (ngModelChange)="updateConfig()" styleClass="w-full mb-3"></p-dropdown>
+      <label class="field-label">Nombre de requêtes</label>
+      <p-inputNumber [(ngModel)]="state.totalRequests" (ngModelChange)="updateConfig()" [min]="10" [max]="1000" styleClass="w-full mb-3"></p-inputNumber>
+      <label class="field-label">Split JVM : {{ state.jvmSplit }}% / Native : {{ 100-state.jvmSplit }}%</label>
+      <p-slider [(ngModel)]="state.jvmSplit" (ngModelChange)="updateConfig()" [min]="10" [max]="90" styleClass="w-full mb-3"></p-slider>
+      <label class="field-label">Endpoint</label>
+      <input pInputText [(ngModel)]="state.testPath" (ngModelChange)="updateConfig()" class="w-full mb-3">
+      <div class="flex flex-column gap-2">
+        <button pButton label="1. Déployer les variantes" icon="pi pi-cloud-upload"
+          class="p-button-outlined" (click)="setup()"></button>
+        <button pButton label="2. Lancer le test" icon="pi pi-play"
+          class="p-button-success"
+          [disabled]="!state.setupDone||state.running" (click)="runTest()"></button>
+        <button pButton label="Supprimer les pods A/B" icon="pi pi-trash"
+          class="p-button-danger p-button-outlined"
+          [disabled]="!state.setupDone" (click)="teardown()"></button>
+      </div>
+    </div>
+  </div>
+  <div class="col-8">
+    <div *ngIf="state.stats.length===0 && !state.running" class="empty-state" style="height:220px;justify-content:center">
+      <div class="empty-icon"><i class="pi pi-sliders-h"></i></div>
+      <div class="empty-title">Configurez et lancez le test</div>
+      <div class="empty-hint">Les résultats de latence par variante apparaîtront ici</div>
+    </div>
+
+    <div *ngIf="state.running && state.stats.length===0" class="section-card" style="height:220px">
+      <div class="flex align-items-center justify-content-center h-full text-muted">
+        <i class="pi pi-spin pi-spinner mr-2"></i> Test en cours...
+      </div>
+    </div>
+
+    <div *ngIf="state.stats.length > 0">
+      <div *ngIf="getImprovement() > 0" class="improvement-banner mb-3">
+        <p class="improvement-title">
+          <i class="pi pi-check-circle mr-2"></i>Native {{ getImprovement() }}% plus rapide
+        </p>
+        <p class="improvement-detail">
+          JVM {{ getJvm()?.avgLatencyMs }}ms vs Native {{ getNative()?.avgLatencyMs }}ms (avg) —
+          JVM {{ getJvm()?.p95LatencyMs }}ms vs Native {{ getNative()?.p95LatencyMs }}ms (P95)
+        </p>
+      </div>
+
+      <div class="grid">
+        <div class="col-6" *ngFor="let s of state.stats">
+          <div class="section-card">
+            <div class="flex align-items-center gap-2 mb-3">
+              <span [class]="s.variant==='NATIVE'?'tag-native':'tag-jvm'">{{ s.variant }}</span>
+              <strong style="font-size:.85rem">{{ s.totalRequests }} requêtes</strong>
+            </div>
+            <div class="grid">
+              <div class="col-6"><p class="stat-label">Latence moy.</p>
+                <p class="stat-value" [class.stat-accent]="s.variant==='NATIVE'">{{ s.avgLatencyMs }}ms</p></div>
+              <div class="col-6"><p class="stat-label">P95</p>
+                <p class="stat-value" [class.stat-accent]="s.variant==='NATIVE'">{{ s.p95LatencyMs }}ms</p></div>
+              <div class="col-6"><p class="stat-label">Min</p>
+                <p class="stat-value-sm">{{ s.minLatencyMs }}ms</p></div>
+              <div class="col-6"><p class="stat-label">Succès</p>
+                <p class="stat-value-sm" style="color:var(--zcs-success)">{{ s.successCount }}/{{ s.totalRequests }}</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

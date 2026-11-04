@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-config
+  namespace: library
+data:
+  DB_URL: "jdbc:mysql://user-mysql:3306/user_db?createDatabaseIfNotExist=true"
+  REDIS_HOST: "user-redis"
+  REDIS_PORT: "6379"
+  LOAN_SERVICE_URL: "http://loan-service:8083"
+  ZIPKIN_URL: "http://zipkin:9411"

@@ -1,0 +1,19 @@
+# NodePort : accessible depuis l'extérieur du cluster (kubectl port-forward ou minikube tunnel)
+# En production, utiliser un Ingress Controller (nginx, Traefik) devant ce service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: library-gateway
+  namespace: library
+  labels:
+    app: library-gateway
+spec:
+  selector:
+    app: library-gateway
+  type: NodePort
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30080
+      protocol: TCP

@@ -1,0 +1,72 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="grid" *ngIf="state">
+  <div class="col-5">
+    <div class="section-card">
+      <p class="section-title">Configuration du build</p>
+      <label class="field-label">Service cible</label>
+      <p-dropdown [options]="services" [(ngModel)]="selectedService"
+        styleClass="w-full mb-3" [disabled]="state.running"></p-dropdown>
+
+      <div class="flex flex-column gap-2 mb-3">
+        <button pButton label="Build JVM" icon="pi pi-coffee"
+          class="p-button-warning" [disabled]="state.running"
+          (click)="startBuild('jvm')"></button>
+        <button pButton label="Build Native (GraalVM)" icon="pi pi-bolt"
+          class="p-button-success" [disabled]="state.running"
+          (click)="startBuild('native')"></button>
+      </div>
+
+      <div *ngIf="state.status !== 'idle'">
+        <p-divider></p-divider>
+        <label class="field-label mb-2">Progression — {{ state.progress }}%</label>
+        <p-progressBar [value]="state.progress" [style]="{'height':'8px'}"
+          [showValue]="false" styleClass="mb-3"></p-progressBar>
+
+        <label class="field-label mb-2">Étapes GraalVM</label>
+        <div *ngFor="let step of graalSteps; let i = index" class="step-row">
+          <i [class]="getStepClass(i+1)"></i>
+          <span [class]="getCurrentStep() > i ? 'step-label done' :
+                         getCurrentStep() === i+1 ? 'step-label current' : 'step-label'">
+            {{ step }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-7">
+    <div class="section-card log-card">
+      <div class="flex align-items-center justify-content-between mb-3">
+        <p class="section-title mb-0">
+          <i class="pi pi-desktop mr-2"></i>Logs
+          <span *ngIf="state.status==='running'" class="tag-info ml-2">En cours — {{ state.serviceName }}</span>
+          <span *ngIf="state.status==='success'" class="tag-success ml-2">Succès</span>
+          <span *ngIf="state.status==='error'" class="tag-critical ml-2">Erreur / Annulé</span>
+        </p>
+        <button pButton icon="pi pi-trash" [text]="true" size="small"
+          pTooltip="Effacer" (click)="clearLogs()" [disabled]="state.running"></button>
+      </div>
+
+      <div *ngIf="state.logs.length === 0" class="log-empty">
+        <i class="pi pi-desktop"></i>
+        <span>Lancez un build pour voir les logs ici</span>
+      </div>
+
+      <div *ngIf="state.logs.length > 0" class="log-console">
+        <div *ngFor="let log of state.logs; let i = index"
+          [class]="'log-line' + (log.includes('ERROR')||log.includes('annule') ? ' log-error' : log.includes('SUCCESS') ? ' log-success' : '')">
+          <span class="log-idx">{{ (i+1) < 10 ? '0'+(i+1) : (i+1) }}</span>{{ log }}
+        </div>
+      </div>
+
+      <div *ngIf="state.running" class="log-footer">
+        <button pButton label="Annuler le build" icon="pi pi-times"
+          class="p-button-danger p-button-outlined w-full"
+          (click)="cancelBuild()"></button>
+      </div>
+    </div>
+  </div>
+</div>
+

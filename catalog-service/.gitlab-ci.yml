@@ -1,0 +1,56 @@
+# Pipeline catalog-service — Java 21
+# Variables GitLab : voir docs/GITLAB-CI.md (DOCKER_USERNAME, DOCKER_PASSWORD)
+
+stages:
+  - build
+  - test
+  - package
+  - docker
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  MAVEN_IMAGE: "maven:3.9.9-eclipse-temurin-21"
+  JAVA_VERSION: "21"
+  IMAGE_NAME: "catalog-service"
+  IMAGE_TAG: "$DOCKER_USERNAME/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+
+.maven-job:
+  image: $MAVEN_IMAGE
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}-maven"
+    paths:
+      - .m2/repository
+
+build:
+  extends: .maven-job
+  stage: build
+  script:
+    - mvn -B clean compile
+
+test:
+  extends: .maven-job
+  stage: test
+  script:
+    - mvn -B test
+
+package:
+  extends: .maven-job
+  stage: package
+  script:
+    - mvn -B clean package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 day
+
+docker:
+  stage: docker
+  image: docker:27
+  services:
+    - docker:27-dind
+  needs:
+    - package
+  script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - docker build -t "$IMAGE_TAG" .
+    - docker push "$IMAGE_TAG"

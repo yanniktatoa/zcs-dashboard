@@ -1,0 +1,48 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: dashboard-api
+
+# Kubernetes namespace cible
+kubernetes:
+  namespace: library
+  services:
+    - name: catalog-service
+      jvmImage: catalog-service:jvm
+      nativeImage: catalog-service:native
+      port: 8081
+    - name: user-service
+      jvmImage: user-service:jvm
+      nativeImage: user-service:native
+      port: 8082
+    - name: loan-service
+      jvmImage: loan-service:jvm
+      nativeImage: loan-service:native
+      port: 8083
+    - name: library-gateway
+      jvmImage: library-gateway:jvm
+      nativeImage: library-gateway:native
+      port: 8080
+
+# Chemins des projets dans WSL
+projects:
+  basePath: ${PROJECT_BASE_PATH:${user.home}/library-microservices}
+  benchmarkScript: ${BENCHMARK_SCRIPT:${user.home}/zero-coldstart-bench/benchmark.sh}
+  coldstartScript: ${COLDSTART_SCRIPT:${user.home}/zero-coldstart-bench/coldstart-test.sh}
+  resultsPath: ${RESULTS_PATH:${user.home}/benchmark-results}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.zerocoldstart: DEBUG
+    io.fabric8: WARN

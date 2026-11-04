@@ -1,0 +1,66 @@
+<p-toast></p-toast>
+<div class="grid mb-3">
+  <div class="col-6">
+    <div class="section-card">
+      <div class="flex align-items-center justify-content-between mb-3">
+        <p class="section-title mb-0"><span class="tag-jvm mr-2">JVM</span>Benchmark baseline</p>
+        <button pButton label="Lancer JVM" icon="pi pi-play" size="small"
+          class="p-button-warning" [disabled]="jvmState.running" (click)="startBenchmark('jvm')"></button>
+      </div>
+      <p-progressBar *ngIf="jvmState.running" [value]="jvmState.progress"
+        [style]="{'height':'6px','margin-bottom':'0.75rem'}" [showValue]="false"></p-progressBar>
+      <div *ngIf="jvmState.logs.length>0" class="mini-log">
+        <div *ngFor="let l of jvmState.logs.slice(-4)" class="mini-log-line">{{ l }}</div>
+      </div>
+      <div *ngFor="let svc of services" class="metric-row">
+        <span class="svc-name">{{ svc }}</span>
+        <span class="metric-val">{{ getM(jvmState.metrics,svc).startupMs ? (getM(jvmState.metrics,svc).startupMs/1000).toFixed(1)+'s' : '—' }}</span>
+        <span class="metric-val">{{ getM(jvmState.metrics,svc).coldStartS ? getM(jvmState.metrics,svc).coldStartS.toFixed(1)+'s cold' : '—' }}</span>
+        <span class="metric-val text-muted">{{ getM(jvmState.metrics,svc).memoryIdleMi ? getM(jvmState.metrics,svc).memoryIdleMi+'Mi' : '—' }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="section-card">
+      <div class="flex align-items-center justify-content-between mb-3">
+        <p class="section-title mb-0"><span class="tag-native mr-2">NATIVE</span>Benchmark natif</p>
+        <button pButton label="Lancer Native" icon="pi pi-bolt" size="small"
+          class="p-button-success" [disabled]="nativeState.running" (click)="startBenchmark('native')"></button>
+      </div>
+      <p-progressBar *ngIf="nativeState.running" [value]="nativeState.progress"
+        [style]="{'height':'6px','margin-bottom':'0.75rem'}" [showValue]="false"></p-progressBar>
+      <div *ngIf="nativeState.logs.length>0" class="mini-log">
+        <div *ngFor="let l of nativeState.logs.slice(-4)" class="mini-log-line">{{ l }}</div>
+      </div>
+      <div *ngFor="let svc of services" class="metric-row">
+        <span class="svc-name">{{ svc }}</span>
+        <span class="metric-val text-success">{{ getM(nativeState.metrics,svc).startupMs ? (getM(nativeState.metrics,svc).startupMs/1000).toFixed(1)+'s' : '—' }}</span>
+        <span class="metric-val text-success">{{ getM(nativeState.metrics,svc).coldStartS ? getM(nativeState.metrics,svc).coldStartS.toFixed(2)+'s cold' : '—' }}</span>
+        <span class="metric-val text-muted">{{ getM(nativeState.metrics,svc).memoryIdleMi ? getM(nativeState.metrics,svc).memoryIdleMi+'Mi' : '—' }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="section-card">
+  <p class="section-title">Tableau comparatif rapide</p>
+  <p-table [value]="services" styleClass="p-datatable-sm p-datatable-gridlines">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Service</th><th>Startup JVM</th><th>Startup Native</th>
+        <th>Cold JVM</th><th>Cold Native</th><th>Mem JVM</th><th>Mem Native</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-svc>
+      <tr>
+        <td><strong>{{ svc }}</strong></td>
+        <td class="text-muted mono">{{ getM(jvmState.metrics,svc).startupMs ? (getM(jvmState.metrics,svc).startupMs/1000).toFixed(1)+'s' : '—' }}</td>
+        <td class="text-success mono">{{ getM(nativeState.metrics,svc).startupMs ? (getM(nativeState.metrics,svc).startupMs/1000).toFixed(1)+'s' : '—' }}</td>
+        <td class="text-muted mono">{{ getM(jvmState.metrics,svc).coldStartS ? getM(jvmState.metrics,svc).coldStartS.toFixed(1)+'s' : '—' }}</td>
+        <td class="text-success mono">{{ getM(nativeState.metrics,svc).coldStartS ? getM(nativeState.metrics,svc).coldStartS.toFixed(2)+'s' : '—' }}</td>
+        <td class="text-muted mono">{{ getM(jvmState.metrics,svc).memoryIdleMi ? getM(jvmState.metrics,svc).memoryIdleMi+' Mi' : '—' }}</td>
+        <td class="text-success mono">{{ getM(nativeState.metrics,svc).memoryIdleMi ? getM(nativeState.metrics,svc).memoryIdleMi+' Mi' : '—' }}</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+

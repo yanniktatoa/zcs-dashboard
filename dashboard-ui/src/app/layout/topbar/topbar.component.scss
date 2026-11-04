@@ -1,0 +1,113 @@
+.topbar {
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  background: var(--zcs-bg);
+  border-bottom: 1px solid var(--zcs-border);
+}
+
+.topbar-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.topbar-eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--zcs-accent);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.page-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--zcs-text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.35rem;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.79rem;
+  color: var(--zcs-text-secondary);
+}
+
+.summary-label { color: var(--zcs-text-muted); }
+
+.mono-val { font-family: 'JetBrains Mono', monospace; color: var(--zcs-text-primary); }
+
+.dot-running {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--zcs-success);
+  box-shadow: 0 0 6px rgba(60,224,160,0.55);
+}
+
+.summary-icon { color: var(--zcs-accent); font-size: 0.78rem; }
+
+.refresh-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--zcs-surface);
+  border: 1px solid var(--zcs-border);
+  color: var(--zcs-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover { background: var(--zcs-border); color: var(--zcs-accent); }
+  i { font-size: 0.82rem; }
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--zcs-border);
+  color: var(--zcs-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: 'Space Grotesk', sans-serif;
+  border-left: 1px solid var(--zcs-border);
+  margin-left: 0.15rem;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--zcs-border);
+  background: var(--zcs-surface-alt);
+  color: var(--zcs-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: var(--zcs-accent-bg);
+    color: var(--zcs-accent);
+  }
+
+  i { font-size: 0.85rem; }
+}

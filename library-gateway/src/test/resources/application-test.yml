@@ -1,0 +1,30 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-test
+          uri: http://localhost:9998
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /${segment}
+        - id: catalog-test
+          uri: http://localhost:9997
+          predicates:
+            - Path=/api/books/**
+          filters:
+            - RewritePath=/api/books/(?<segment>.*), /${segment}
+        - id: loan-test
+          uri: http://localhost:9996
+          predicates:
+            - Path=/api/loans/**
+          filters:
+            - RewritePath=/api/loans/(?<segment>.*), /${segment}
+
+management:
+  tracing:
+    sampling:
+      probability: 0.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans

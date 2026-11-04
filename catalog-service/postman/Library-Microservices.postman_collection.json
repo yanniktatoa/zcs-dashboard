@@ -1,0 +1,896 @@
+{
+  "info": {
+    "_postman_id": "lib-ms-complete-v2",
+    "name": "Library Microservices — Tests complets",
+    "description": "Collection exhaustive : catalog :8081 · user :8082 · loan :8083 · gateway :8080\n\n• Health (liveness/readiness/prometheus/info)\n• CRUD complet avec assertions pm.test\n• Cas d'erreur (400/404/409)\n• Routes Gateway + vérification X-Correlation-Id\n• Scénario E2E avec flux Kafka (emprunt → stock décrémenté → retour → stock incrémenté)\n\nPour l'E2E : utiliser Collection Runner, exécuter le dossier dans l'ordre.\nÉtapes stock-après-Kafka : patienter 5-10 s si nécessaire (Outbox publisher toutes les 5 s).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "gatewayUrl",    "value": "http://localhost:8080" },
+    { "key": "catalogBaseUrl","value": "http://localhost:8081" },
+    { "key": "userBaseUrl",   "value": "http://localhost:8082" },
+    { "key": "loanBaseUrl",   "value": "http://localhost:8083" },
+    { "key": "userId",        "value": "", "description": "Auto-alimenté par POST /users" },
+    { "key": "bookId",        "value": "", "description": "Auto-alimenté par POST /books" },
+    { "key": "loanId",        "value": "", "description": "Auto-alimenté par POST /loans" },
+    { "key": "correlationId", "value": "" },
+    { "key": "e2eUserId",     "value": "" },
+    { "key": "e2eBookId",     "value": "" },
+    { "key": "e2eLoanId",     "value": "" },
+    { "key": "e2eEmail",      "value": "" },
+    { "key": "e2eBookTitle",  "value": "" }
+  ],
+  "item": [
+
+    {
+      "name": "🏥 Health & Actuator",
+      "item": [
+        {
+          "name": "Gateway — health",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('status UP', () => pm.expect(pm.response.json().status).to.equal('UP'));",
+            "pm.test('groupes liveness+readiness', () => pm.expect(pm.response.json().groups).to.include.members(['liveness','readiness']));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/actuator/health" }
+        },
+        {
+          "name": "Gateway — liveness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/actuator/health/liveness" }
+        },
+        {
+          "name": "Gateway — readiness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/actuator/health/readiness" }
+        },
+        {
+          "name": "Gateway — prometheus",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('métriques JVM', () => pm.expect(pm.response.text()).to.include('jvm_memory_used_bytes'));",
+            "pm.test('métriques gateway', () => pm.expect(pm.response.text()).to.include('spring_cloud_gateway'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/actuator/prometheus" }
+        },
+        {
+          "name": "Gateway — info",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('app.name = library-gateway', () => pm.expect(pm.response.json().app.name).to.equal('library-gateway'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/actuator/info" }
+        },
+        {
+          "name": "Catalog — health",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/actuator/health" }
+        },
+        {
+          "name": "Catalog — liveness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/actuator/health/liveness" }
+        },
+        {
+          "name": "Catalog — readiness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/actuator/health/readiness" }
+        },
+        {
+          "name": "Catalog — prometheus",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('métriques JVM', () => pm.expect(pm.response.text()).to.include('jvm_memory_used_bytes'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/actuator/prometheus" }
+        },
+        {
+          "name": "User — health",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{userBaseUrl}}/actuator/health" }
+        },
+        {
+          "name": "User — liveness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{userBaseUrl}}/actuator/health/liveness" }
+        },
+        {
+          "name": "User — readiness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{userBaseUrl}}/actuator/health/readiness" }
+        },
+        {
+          "name": "User — prometheus",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('métriques JVM', () => pm.expect(pm.response.text()).to.include('jvm_memory_used_bytes'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{userBaseUrl}}/actuator/prometheus" }
+        },
+        {
+          "name": "Loan — health",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/actuator/health" }
+        },
+        {
+          "name": "Loan — liveness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/actuator/health/liveness" }
+        },
+        {
+          "name": "Loan — readiness",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/actuator/health/readiness" }
+        },
+        {
+          "name": "Loan — prometheus",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('métriques JVM', () => pm.expect(pm.response.text()).to.include('jvm_memory_used_bytes'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/actuator/prometheus" }
+        }
+      ]
+    },
+
+    {
+      "name": "📚 Catalog — Books [direct :8081]",
+      "item": [
+        {
+          "name": "POST /books ✅ crée livre (sauvegarde bookId)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('Corps structuré', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.id).to.be.a('number');",
+            "  pm.expect(d.title).to.equal('Clean Code');",
+            "  pm.expect(d.author).to.equal('Robert C. Martin');",
+            "  pm.expect(d.availableStock).to.equal(5);",
+            "  pm.expect(d.version).to.be.a('number');",
+            "});",
+            "pm.collectionVariables.set('bookId', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Clean Code\",\n  \"author\": \"Robert C. Martin\",\n  \"category\": \"Software\",\n  \"availableStock\": 5\n}" },
+            "url": "{{catalogBaseUrl}}/books"
+          }
+        },
+        {
+          "name": "GET /books (liste complète)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Tableau non vide', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d).to.be.an('array').with.length.at.least(1);",
+            "});",
+            "pm.test('Chaque livre a id+title+availableStock', () => {",
+            "  pm.response.json().forEach(b => {",
+            "    pm.expect(b.id).to.be.a('number');",
+            "    pm.expect(b.title).to.be.a('string');",
+            "    pm.expect(b.availableStock).to.be.a('number');",
+            "  });",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/books" }
+        },
+        {
+          "name": "GET /books/paginated",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Structure Page Spring', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.content).to.be.an('array');",
+            "  pm.expect(d.totalElements).to.be.a('number');",
+            "  pm.expect(d.totalPages).to.be.a('number');",
+            "  pm.expect(d.size).to.equal(10);",
+            "  pm.expect(d.number).to.equal(0);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": {
+              "raw": "{{catalogBaseUrl}}/books/paginated?page=0&size=10&sort=title,asc",
+              "host": ["{{catalogBaseUrl}}"], "path": ["books","paginated"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "title,asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /books/{bookId}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('ID correspond', () => pm.expect(pm.response.json().id).to.equal(Number(pm.collectionVariables.get('bookId'))));",
+            "pm.test('Stock est un entier ≥ 0', () => pm.expect(pm.response.json().availableStock).to.be.at.least(0));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/books/{{bookId}}" }
+        },
+        {
+          "name": "PUT /books/{bookId} (mise à jour)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Titre mis à jour', () => pm.expect(pm.response.json().title).to.equal('Clean Code (2e éd.)'));",
+            "pm.test('Stock mis à jour', () => pm.expect(pm.response.json().availableStock).to.equal(4));",
+            "pm.test('Version incrémentée', () => pm.expect(pm.response.json().version).to.be.at.least(1));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Clean Code (2e éd.)\",\n  \"author\": \"Robert C. Martin\",\n  \"category\": \"Software\",\n  \"availableStock\": 4\n}" },
+            "url": "{{catalogBaseUrl}}/books/{{bookId}}"
+          }
+        },
+        {
+          "name": "POST /books ❌ titre vide → 400",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"\",\n  \"author\": \"Auteur\",\n  \"category\": \"Tech\",\n  \"availableStock\": 1\n}" },
+            "url": "{{catalogBaseUrl}}/books"
+          }
+        },
+        {
+          "name": "POST /books ❌ stock négatif → 400",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Titre valide\",\n  \"author\": \"Auteur\",\n  \"category\": \"Tech\",\n  \"availableStock\": -1\n}" },
+            "url": "{{catalogBaseUrl}}/books"
+          }
+        },
+        {
+          "name": "GET /books/99999 ❌ introuvable → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+            "pm.test('Réponse erreur structurée', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.message).to.be.a('string');",
+            "  pm.expect(d.status).to.equal(404);",
+            "  pm.expect(d.timestamp).to.be.a('string');",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/books/99999" }
+        },
+        {
+          "name": "PUT /books/99999 ❌ introuvable → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"X\",\n  \"author\": \"X\",\n  \"category\": \"X\",\n  \"availableStock\": 1\n}" },
+            "url": "{{catalogBaseUrl}}/books/99999"
+          }
+        },
+        {
+          "name": "DELETE /books/{bookId}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": { "method": "DELETE", "header": [], "url": "{{catalogBaseUrl}}/books/{{bookId}}" }
+        },
+        {
+          "name": "DELETE /books/99999 ❌ introuvable → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": { "method": "DELETE", "header": [], "url": "{{catalogBaseUrl}}/books/99999" }
+        }
+      ]
+    },
+
+    {
+      "name": "👤 User Service [direct :8082]",
+      "item": [
+        {
+          "name": "POST /users ✅ crée utilisateur (sauvegarde userId)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('Corps structuré', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.id).to.be.a('number');",
+            "  pm.expect(d.name).to.equal('Alice Martin');",
+            "  pm.expect(d.email).to.equal('alice.martin.postman@example.com');",
+            "  pm.expect(d.role).to.equal('MEMBER');",
+            "});",
+            "pm.collectionVariables.set('userId', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Alice Martin\",\n  \"email\": \"alice.martin.postman@example.com\",\n  \"role\": \"MEMBER\"\n}" },
+            "url": "{{userBaseUrl}}/users"
+          }
+        },
+        {
+          "name": "GET /users (liste complète)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Tableau non vide', () => pm.expect(pm.response.json()).to.be.an('array').with.length.at.least(1));",
+            "pm.test('Chaque user a id+name+email', () => {",
+            "  pm.response.json().forEach(u => {",
+            "    pm.expect(u.id).to.be.a('number');",
+            "    pm.expect(u.name).to.be.a('string');",
+            "    pm.expect(u.email).to.be.a('string');",
+            "  });",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{userBaseUrl}}/users" }
+        },
+        {
+          "name": "GET /users/paginated",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Structure Page Spring', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.content).to.be.an('array');",
+            "  pm.expect(d.totalElements).to.be.a('number');",
+            "  pm.expect(d.size).to.equal(5);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": {
+              "raw": "{{userBaseUrl}}/users/paginated?page=0&size=5&sort=name,asc",
+              "host": ["{{userBaseUrl}}"], "path": ["users","paginated"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" },
+                { "key": "sort", "value": "name,asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /users/{userId}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('ID correspond', () => pm.expect(pm.response.json().id).to.equal(Number(pm.collectionVariables.get('userId'))));",
+            "pm.test('Email présent', () => pm.expect(pm.response.json().email).to.be.a('string'));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{userBaseUrl}}/users/{{userId}}" }
+        },
+        {
+          "name": "POST /users ❌ email invalide → 400",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bob\",\n  \"email\": \"pas-un-email\",\n  \"role\": \"MEMBER\"\n}" },
+            "url": "{{userBaseUrl}}/users"
+          }
+        },
+        {
+          "name": "POST /users ❌ name vide → 400",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"\",\n  \"email\": \"valide@example.com\",\n  \"role\": \"MEMBER\"\n}" },
+            "url": "{{userBaseUrl}}/users"
+          }
+        },
+        {
+          "name": "POST /users ❌ email dupliqué → 409",
+          "description": "Recrée le même email qu'à l'étape 1 (alice.martin.postman@example.com)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+            "pm.test('Réponse erreur structurée', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.message).to.be.a('string');",
+            "  pm.expect(d.status).to.equal(409);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Alice Copie\",\n  \"email\": \"alice.martin.postman@example.com\",\n  \"role\": \"MEMBER\"\n}" },
+            "url": "{{userBaseUrl}}/users"
+          }
+        },
+        {
+          "name": "GET /users/99999 ❌ introuvable → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+            "pm.test('Réponse erreur structurée', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.message).to.be.a('string');",
+            "  pm.expect(d.status).to.equal(404);",
+            "  pm.expect(d.timestamp).to.be.a('string');",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{userBaseUrl}}/users/99999" }
+        },
+        {
+          "name": "DELETE /users/{userId}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": { "method": "DELETE", "header": [], "url": "{{userBaseUrl}}/users/{{userId}}" }
+        }
+      ]
+    },
+
+    {
+      "name": "📋 Loan Service [direct :8083]",
+      "item": [
+        {
+          "name": "POST /loans ✅ crée emprunt (sauvegarde loanId)",
+          "description": "Requiert un userId et bookId valides (créés dans les dossiers précédents ou via l'E2E)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('Corps structuré', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.id).to.be.a('number');",
+            "  pm.expect(d.userId).to.be.a('number');",
+            "  pm.expect(d.bookId).to.be.a('number');",
+            "  pm.expect(d.status).to.equal('ONGOING');",
+            "  pm.expect(d.loanDate).to.be.a('string');",
+            "  pm.expect(d.returnDate).to.be.null;",
+            "});",
+            "pm.collectionVariables.set('loanId', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": {{userId}},\n  \"bookId\": {{bookId}}\n}" },
+            "url": "{{loanBaseUrl}}/loans"
+          }
+        },
+        {
+          "name": "GET /loans (liste complète)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Tableau', () => pm.expect(pm.response.json()).to.be.an('array'));",
+            "pm.test('Chaque emprunt a id+userId+bookId+status', () => {",
+            "  pm.response.json().forEach(l => {",
+            "    pm.expect(l.id).to.be.a('number');",
+            "    pm.expect(l.userId).to.be.a('number');",
+            "    pm.expect(l.bookId).to.be.a('number');",
+            "    pm.expect(['ONGOING','RETURNED']).to.include(l.status);",
+            "  });",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/loans" }
+        },
+        {
+          "name": "GET /loans/paginated",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Structure Page Spring', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.content).to.be.an('array');",
+            "  pm.expect(d.totalElements).to.be.a('number');",
+            "  pm.expect(d.size).to.equal(10);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": {
+              "raw": "{{loanBaseUrl}}/loans/paginated?page=0&size=10&sort=loanDate,desc",
+              "host": ["{{loanBaseUrl}}"], "path": ["loans","paginated"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "loanDate,desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /loans/user/{userId}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Tableau des emprunts de l'utilisateur', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d).to.be.an('array');",
+            "  d.forEach(l => pm.expect(l.userId).to.equal(Number(pm.collectionVariables.get('userId'))));",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/loans/user/{{userId}}" }
+        },
+        {
+          "name": "GET /loans/user/{userId}/active/exists → true",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Emprunt actif = true', () => pm.expect(pm.response.json()).to.equal(true));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/loans/user/{{userId}}/active/exists" }
+        },
+        {
+          "name": "POST /loans ❌ userId inexistant → 404 ou 503",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Erreur (404 user-service ou 503 circuit breaker)', () => {",
+            "  pm.expect([404,503]).to.include(pm.response.code);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": 99999,\n  \"bookId\": 1\n}" },
+            "url": "{{loanBaseUrl}}/loans"
+          }
+        },
+        {
+          "name": "POST /loans ❌ bookId inexistant → 404 ou 503",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Erreur (404 catalog-service ou 503 circuit breaker)', () => {",
+            "  pm.expect([404,503]).to.include(pm.response.code);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": {{userId}},\n  \"bookId\": 99999\n}" },
+            "url": "{{loanBaseUrl}}/loans"
+          }
+        },
+        {
+          "name": "POST /loans ❌ body vide → 400",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{loanBaseUrl}}/loans"
+          }
+        },
+        {
+          "name": "PUT /loans/{loanId}/return ✅",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Statut RETURNED', () => pm.expect(pm.response.json().status).to.equal('RETURNED'));",
+            "pm.test('returnDate présente', () => pm.expect(pm.response.json().returnDate).to.be.a('string'));"
+          ]}}],
+          "request": { "method": "PUT", "header": [], "url": "{{loanBaseUrl}}/loans/{{loanId}}/return" }
+        },
+        {
+          "name": "PUT /loans/{loanId}/return ❌ déjà retourné → 409",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+            "pm.test('Message d'erreur présent', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+          ]}}],
+          "request": { "method": "PUT", "header": [], "url": "{{loanBaseUrl}}/loans/{{loanId}}/return" }
+        },
+        {
+          "name": "GET /loans/user/{userId}/active/exists → false",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Aucun emprunt actif = false', () => pm.expect(pm.response.json()).to.equal(false));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/loans/user/{{userId}}/active/exists" }
+        },
+        {
+          "name": "PUT /loans/99999/return ❌ introuvable → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": { "method": "PUT", "header": [], "url": "{{loanBaseUrl}}/loans/99999/return" }
+        }
+      ]
+    },
+
+    {
+      "name": "🌐 Gateway Routes [:8080]",
+      "description": "Teste le routage via Spring Cloud Gateway + X-Correlation-Id.\nRequiert : gateway en cours d'exécution + les 3 services backend démarrés.",
+      "item": [
+        {
+          "name": "GET /api/books — routé vers catalog (X-Correlation-Id généré)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Réponse tableau (catalog)', () => pm.expect(pm.response.json()).to.be.an('array'));",
+            "pm.test('X-Correlation-Id généré automatiquement', () => {",
+            "  const id = pm.response.headers.get('X-Correlation-Id');",
+            "  pm.expect(id).to.not.be.null;",
+            "  pm.expect(id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);",
+            "  pm.collectionVariables.set('correlationId', id);",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/api/books" }
+        },
+        {
+          "name": "GET /api/books — X-Correlation-Id conservé depuis la requête",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.collectionVariables.set('correlationId', 'postman-custom-' + Date.now());"
+            ]}},
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('X-Correlation-Id conservé (identique à l'envoi)', () => {",
+              "  const sent = pm.collectionVariables.get('correlationId');",
+              "  const received = pm.response.headers.get('X-Correlation-Id');",
+              "  pm.expect(received).to.equal(sent);",
+              "});"
+            ]}}
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Correlation-Id", "value": "{{correlationId}}" }],
+            "url": "{{gatewayUrl}}/api/books"
+          }
+        },
+        {
+          "name": "POST /api/books — routé vers catalog",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('Livre créé via gateway', () => pm.expect(pm.response.json().id).to.be.a('number'));",
+            "pm.test('X-Correlation-Id dans réponse', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.not.be.null);",
+            "pm.collectionVariables.set('bookId', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"The Pragmatic Programmer\",\n  \"author\": \"Andrew Hunt\",\n  \"category\": \"Software\",\n  \"availableStock\": 3\n}" },
+            "url": "{{gatewayUrl}}/api/books"
+          }
+        },
+        {
+          "name": "GET /api/users — routé vers user-service",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Tableau users', () => pm.expect(pm.response.json()).to.be.an('array'));",
+            "pm.test('X-Correlation-Id présent', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.not.be.null);"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/api/users" }
+        },
+        {
+          "name": "POST /api/users — routé vers user-service",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('User créé via gateway', () => pm.expect(pm.response.json().id).to.be.a('number'));",
+            "pm.test('X-Correlation-Id présent', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.not.be.null);",
+            "pm.collectionVariables.set('userId', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bob Dupont\",\n  \"email\": \"bob.dupont.gateway@example.com\",\n  \"role\": \"MEMBER\"\n}" },
+            "url": "{{gatewayUrl}}/api/users"
+          }
+        },
+        {
+          "name": "GET /api/loans — routé vers loan-service",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Tableau emprunts', () => pm.expect(pm.response.json()).to.be.an('array'));",
+            "pm.test('X-Correlation-Id présent', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.not.be.null);"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/api/loans" }
+        },
+        {
+          "name": "POST /api/loans — routé vers loan-service",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('Emprunt créé via gateway', () => {",
+            "  const d = pm.response.json();",
+            "  pm.expect(d.id).to.be.a('number');",
+            "  pm.expect(d.status).to.equal('ONGOING');",
+            "});",
+            "pm.test('X-Correlation-Id présent', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.not.be.null);",
+            "pm.collectionVariables.set('loanId', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": {{userId}},\n  \"bookId\": {{bookId}}\n}" },
+            "url": "{{gatewayUrl}}/api/loans"
+          }
+        },
+        {
+          "name": "GET /api/loans/user/{userId} — routé vers loan-service",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Tableau emprunts de l'utilisateur', () => pm.expect(pm.response.json()).to.be.an('array'));",
+            "pm.test('X-Correlation-Id présent', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.not.be.null);"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{gatewayUrl}}/api/loans/user/{{userId}}" }
+        },
+        {
+          "name": "GET /api/books/paginated — routé + X-Correlation-Id",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Structure Page Spring', () => pm.expect(pm.response.json().content).to.be.an('array'));",
+            "pm.test('X-Correlation-Id présent', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.not.be.null);"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/books/paginated?page=0&size=5&sort=title,asc",
+              "host": ["{{gatewayUrl}}"], "path": ["api","books","paginated"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" },
+                { "key": "sort", "value": "title,asc" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔄 Scénario E2E — Flux complet",
+      "description": "Exécuter via Collection Runner dans l'ordre strict.\n\nFlux testé :\nCréation user → création livre (stock=3) → emprunt → vérification stock=2 (Kafka) → retour → vérification stock=3 (Kafka) → nettoyage.\n\n⚠️ Les étapes '5 — Vérifier stock après emprunt' et '9 — Vérifier stock après retour' dépendent du traitement Kafka (Outbox toutes les 5 s). Relancer la requête si le stock n'est pas encore mis à jour.",
+      "item": [
+        {
+          "name": "E2E 1 — Créer utilisateur (email unique)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const ts = Date.now();",
+              "pm.collectionVariables.set('e2eEmail', 'e2e.' + ts + '@test.com');"
+            ]}},
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('User créé', () => pm.expect(pm.response.json().id).to.be.a('number'));",
+              "pm.collectionVariables.set('e2eUserId', pm.response.json().id);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"E2E User\",\n  \"email\": \"{{e2eEmail}}\",\n  \"role\": \"MEMBER\"\n}" },
+            "url": "{{userBaseUrl}}/users"
+          }
+        },
+        {
+          "name": "E2E 2 — Créer livre (stock = 3)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.collectionVariables.set('e2eBookTitle', 'E2E Book ' + Date.now());"
+            ]}},
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('Stock initial = 3', () => pm.expect(pm.response.json().availableStock).to.equal(3));",
+              "pm.collectionVariables.set('e2eBookId', pm.response.json().id);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"{{e2eBookTitle}}\",\n  \"author\": \"E2E Author\",\n  \"category\": \"Test\",\n  \"availableStock\": 3\n}" },
+            "url": "{{catalogBaseUrl}}/books"
+          }
+        },
+        {
+          "name": "E2E 3 — Vérifier stock initial = 3",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Stock = 3 avant emprunt', () => pm.expect(pm.response.json().availableStock).to.equal(3));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/books/{{e2eBookId}}" }
+        },
+        {
+          "name": "E2E 4 — Créer emprunt",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('Status ONGOING', () => pm.expect(pm.response.json().status).to.equal('ONGOING'));",
+            "pm.collectionVariables.set('e2eLoanId', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": {{e2eUserId}},\n  \"bookId\": {{e2eBookId}}\n}" },
+            "url": "{{loanBaseUrl}}/loans"
+          }
+        },
+        {
+          "name": "E2E 5 — Vérifier stock = 2 après Kafka (⚠️ attendre 5-10s)",
+          "description": "Le stock est décrémenté de façon asynchrone via Kafka (Outbox publisher toutes les 5 s). Si le test échoue, patienter et renvoyer la requête.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Stock = 2 après événement loan-created Kafka', () => pm.expect(pm.response.json().availableStock).to.equal(2));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/books/{{e2eBookId}}" }
+        },
+        {
+          "name": "E2E 6 — Vérifier emprunt actif exists = true",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Emprunt actif = true', () => pm.expect(pm.response.json()).to.equal(true));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/loans/user/{{e2eUserId}}/active/exists" }
+        },
+        {
+          "name": "E2E 7 — DELETE user ❌ emprunt actif → 409",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('409 Conflict (emprunt actif)', () => pm.response.to.have.status(409));",
+            "pm.test('Message d'erreur présent', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+          ]}}],
+          "request": { "method": "DELETE", "header": [], "url": "{{userBaseUrl}}/users/{{e2eUserId}}" }
+        },
+        {
+          "name": "E2E 8 — Retourner le livre",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Status RETURNED', () => pm.expect(pm.response.json().status).to.equal('RETURNED'));",
+            "pm.test('returnDate présente', () => pm.expect(pm.response.json().returnDate).to.be.a('string'));"
+          ]}}],
+          "request": { "method": "PUT", "header": [], "url": "{{loanBaseUrl}}/loans/{{e2eLoanId}}/return" }
+        },
+        {
+          "name": "E2E 9 — Vérifier stock = 3 après Kafka (⚠️ attendre 5-10s)",
+          "description": "Le stock est réincrémenté via événement loan-returned → Kafka → catalog-service.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Stock = 3 après événement loan-returned Kafka', () => pm.expect(pm.response.json().availableStock).to.equal(3));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{catalogBaseUrl}}/books/{{e2eBookId}}" }
+        },
+        {
+          "name": "E2E 10 — Vérifier emprunt actif exists = false",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Aucun emprunt actif = false', () => pm.expect(pm.response.json()).to.equal(false));"
+          ]}}],
+          "request": { "method": "GET", "header": [], "url": "{{loanBaseUrl}}/loans/user/{{e2eUserId}}/active/exists" }
+        },
+        {
+          "name": "E2E 11 — DELETE user ✅ (plus d'emprunt actif)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": { "method": "DELETE", "header": [], "url": "{{userBaseUrl}}/users/{{e2eUserId}}" }
+        },
+        {
+          "name": "E2E 12 — DELETE livre (nettoyage)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": { "method": "DELETE", "header": [], "url": "{{catalogBaseUrl}}/books/{{e2eBookId}}" }
+        }
+      ]
+    }
+
+  ]
+}

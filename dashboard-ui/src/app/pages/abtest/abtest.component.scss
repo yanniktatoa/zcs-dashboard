@@ -1,0 +1,28 @@
+:host { display: block; }
+
+.improvement-banner {
+  background: rgba(60, 224, 160, 0.08);
+  border: 1px solid rgba(60, 224, 160, 0.22);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.improvement-title {
+  color: var(--zcs-success);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.improvement-detail {
+  color: var(--zcs-text-secondary);
+  font-size: 0.78rem;
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-label { color: var(--zcs-text-muted); font-size: 0.7rem; margin: 0 0 0.2rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.stat-value { font-size: 1.3rem; font-weight: 600; margin: 0; color: var(--zcs-text-primary); font-family: 'JetBrains Mono', monospace; }
+.stat-value-sm { font-size: 1rem; font-weight: 500; margin: 0; color: var(--zcs-text-secondary); font-family: 'JetBrains Mono', monospace; }
+.stat-accent { color: var(--zcs-accent) !important; }

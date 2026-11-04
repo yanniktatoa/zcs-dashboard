@@ -1,0 +1,43 @@
+// ===== Mode clair (par defaut) =====
+:root, .zcs-light {
+  --zcs-bg: #F6F7F9;
+  --zcs-surface: #FFFFFF;
+  --zcs-surface-alt: #F0F2F5;
+  --zcs-border: #E1E4EA;
+  --zcs-border-strong: #C9CED8;
+  --zcs-text-primary: #1A1D23;
+  --zcs-text-secondary: #5A6472;
+  --zcs-text-muted: #8B95A3;
+  --zcs-accent: #0D9488;
+  --zcs-accent-bg: rgba(13,148,136,0.08);
+  --zcs-jvm: #A16207;
+  --zcs-jvm-bg: #FEF3C7;
+  --zcs-danger: #DC2626;
+  --zcs-danger-bg: #FEE2E2;
+  --zcs-success: #15803D;
+  --zcs-success-bg: #DCFCE7;
+  --zcs-log-bg: #F0F2F5;
+  --zcs-log-text: #333333;
+}
+
+// ===== Mode sombre =====
+.zcs-dark {
+  --zcs-bg: #0B0D12;
+  --zcs-surface: #12151B;
+  --zcs-surface-alt: #171A21;
+  --zcs-border: #1C2028;
+  --zcs-border-strong: #262B34;
+  --zcs-text-primary: #E5E7EB;
+  --zcs-text-secondary: #9CA3AF;
+  --zcs-text-muted: #5A6472;
+  --zcs-accent: #5EEAD4;
+  --zcs-accent-bg: rgba(94,234,212,0.09);
+  --zcs-jvm: #D1B37E;
+  --zcs-jvm-bg: rgba(209,179,126,0.09);
+  --zcs-danger: #FB7185;
+  --zcs-danger-bg: rgba(251,113,133,0.09);
+  --zcs-success: #5EEAD4;
+  --zcs-success-bg: rgba(94,234,212,0.09);
+  --zcs-log-bg: #1e1e2e;
+  --zcs-log-text: #cdd6f4;
+}

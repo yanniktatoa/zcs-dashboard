@@ -1,0 +1,107 @@
+<p-toast></p-toast>
+
+<div class="grid mb-3">
+  <div class="col-3"><div class="metric-card">
+    <div class="metric-icon"><i class="pi pi-th-large"></i></div>
+    <p class="metric-label">Pods actifs</p>
+    <p class="metric-value">{{ runningCount }} / {{ pods.length }}</p>
+  </div></div>
+  <div class="col-3"><div class="metric-card">
+    <div class="metric-icon"><i class="pi pi-bolt"></i></div>
+    <p class="metric-label">Services natifs</p>
+    <p class="metric-value" style="color:var(--zcs-accent)">{{ nativeCount }} / {{ appPods.length }}</p>
+  </div></div>
+  <div class="col-3"><div class="metric-card">
+    <div class="metric-icon" style="background:transparent;color:var(--zcs-text-muted)"><i class="pi pi-folder"></i></div>
+    <p class="metric-label">Namespace</p>
+    <p class="metric-value" style="font-size:1rem">{{ clusterInfo.namespace || '—' }}</p>
+  </div></div>
+  <div class="col-3"><div class="metric-card">
+    <div class="metric-icon" style="background:transparent;color:var(--zcs-text-muted)"><i class="pi pi-send"></i></div>
+    <p class="metric-label">Version k8s</p>
+    <p class="metric-value" style="font-size:0.85rem">{{ clusterInfo.version || '—' }}</p>
+  </div></div>
+</div>
+
+<div class="section-card">
+  <p class="section-title"><i class="pi pi-box mr-2"></i>Microservices applicatifs</p>
+
+  <p-table *ngIf="appPods.length > 0 || loading" [value]="appPods" [loading]="loading" styleClass="p-datatable-sm">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Service</th><th>Mode</th><th>Statut</th>
+        <th>Restarts</th><th>CPU (m)</th><th>RAM (Mi)</th><th>Age</th>
+        <th style="text-align:right">Actions</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-pod>
+      <tr>
+        <td><strong>{{ pod.service }}</strong></td>
+        <td><span [class]="pod.mode === 'NATIVE' ? 'tag-native' : 'tag-jvm'">{{ pod.mode }}</span></td>
+        <td><p-tag [value]="pod.status" [severity]="getSeverity(pod.status)"></p-tag></td>
+        <td>{{ pod.restarts }}</td>
+        <td>{{ getMetric(pod.service).cpu ?? '—' }}</td>
+        <td>{{ getMetric(pod.service).memory ?? '—' }}</td>
+        <td class="text-muted">{{ pod.age }}</td>
+        <td style="text-align:right">
+          <p-button icon="pi pi-file-edit" [text]="true" size="small"
+            pTooltip="Logs" (onClick)="openLogs(pod)"></p-button>
+          <p-button [icon]="pod.mode === 'NATIVE' ? 'pi pi-undo' : 'pi pi-bolt'"
+            [text]="true" size="small"
+            [pTooltip]="'Basculer ' + (pod.mode === 'NATIVE' ? 'JVM' : 'Native')"
+            (onClick)="switchMode(pod)"></p-button>
+          <p-button icon="pi pi-refresh" [text]="true" size="small"
+            pTooltip="Redemarrer" (onClick)="restartPod(pod)"></p-button>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <div *ngIf="!loading && appPods.length === 0" class="empty-state">
+    <div class="empty-icon"><i class="pi pi-box"></i></div>
+    <div class="empty-title">Aucun pod actif pour le moment</div>
+    <div class="empty-hint">Lancez un build JVM ou natif depuis l'onglet Build pour peupler le cluster k3d et voir apparaître les microservices ici.</div>
+  </div>
+</div>
+
+<div class="section-card">
+  <p class="section-title"><i class="pi pi-database mr-2"></i>Infrastructure</p>
+
+  <p-table *ngIf="infraPods.length > 0" [value]="infraPods" styleClass="p-datatable-sm p-datatable-gridlines">
+    <ng-template pTemplate="header">
+      <tr><th>Service</th><th>Image</th><th>Statut</th><th>Restarts</th><th>Age</th></tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-pod>
+      <tr>
+        <td>{{ pod.service }}</td>
+        <td class="mono text-muted">{{ pod.image }}</td>
+        <td><p-tag [value]="pod.status" [severity]="getSeverity(pod.status)"></p-tag></td>
+        <td>{{ pod.restarts }}</td>
+        <td class="text-muted">{{ pod.age }}</td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <div *ngIf="infraPods.length === 0" class="empty-state" style="padding:1.75rem">
+    <div class="empty-hint">Pas d'infrastructure provisionnée</div>
+  </div>
+</div>
+
+
+<p-dialog [(visible)]="showLogsDialog"
+  [header]="'Logs — ' + selectedPod?.name"
+  [modal]="true" [style]="{width:'75vw',height:'70vh'}"
+  (onHide)="closeLogs()">
+  <div *ngIf="logsLoading" class="flex align-items-center justify-content-center" style="height:200px">
+    <i class="pi pi-spin pi-spinner" style="font-size:2rem"></i>
+  </div>
+  <div *ngIf="!logsLoading"
+    style="background:var(--zcs-log-bg);color:var(--zcs-log-text);font-family:monospace;font-size:0.75rem;
+           padding:1rem;border-radius:6px;height:calc(70vh - 120px);
+           overflow-y:auto;white-space:pre-wrap;line-height:1.6">
+    {{ podLogs || 'Aucun log disponible' }}
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Fermer" icon="pi pi-times" [text]="true" (onClick)="closeLogs()"></p-button>
+  </ng-template>
+</p-dialog>

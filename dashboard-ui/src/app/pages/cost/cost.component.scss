@@ -1,0 +1,39 @@
+.provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: var(--zcs-surface-alt);
+  margin-bottom: 0.6rem;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.provider-name {
+  font-size: 0.83rem;
+  font-weight: 500;
+  min-width: 160px;
+  color: var(--zcs-text-primary);
+}
+
+.provider-costs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cost-muted { color: var(--zcs-text-secondary); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+.cost-accent { color: var(--zcs-accent); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+.cost-arrow { color: var(--zcs-text-secondary); font-size: 0.75rem; }
+
+.saving-badge {
+  background: rgba(60, 224, 160, 0.12);
+  color: var(--zcs-success);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  min-width: 48px;
+  text-align: center;
+}

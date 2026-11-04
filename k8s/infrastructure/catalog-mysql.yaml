@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: catalog-mysql-pvc
+  namespace: library
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-mysql
+  namespace: library
+  labels:
+    app: catalog-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog-mysql
+  template:
+    metadata:
+      labels:
+        app: catalog-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "root"
+            - name: MYSQL_DATABASE
+              value: "catalog_db"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 5
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: catalog-mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-mysql
+  namespace: library
+spec:
+  selector:
+    app: catalog-mysql
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306

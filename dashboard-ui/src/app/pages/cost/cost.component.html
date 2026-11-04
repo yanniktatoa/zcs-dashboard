@@ -1,0 +1,57 @@
+<div class="grid mb-3">
+  <div class="col-4">
+    <div class="section-card">
+      <p class="section-title">Paramètres de simulation</p>
+      <label class="field-label">Invocations par mois</label>
+      <p-inputNumber [(ngModel)]="invocations" [min]="1000" [useGrouping]="true" styleClass="w-full mb-3"></p-inputNumber>
+      <label class="field-label">Taux de cold start : {{ coldStartRatio }}%</label>
+      <p-slider [(ngModel)]="coldStartRatio" [min]="1" [max]="50" styleClass="w-full mb-3"></p-slider>
+      <button pButton label="Calculer" icon="pi pi-calculator" class="p-button-success w-full"
+        [disabled]="loading" (click)="simulate()"></button>
+    </div>
+  </div>
+  <div class="col-8">
+    <div class="section-card">
+      <p class="section-title">Économie estimée — 4 services / mois</p>
+      <div *ngFor="let p of providers" class="provider-row">
+        <span class="provider-name">{{ p }}</span>
+        <div class="provider-costs">
+          <span class="tag-jvm">JVM</span>
+          <strong class="cost-muted">${{ getTotal(p,'JVM') }}</strong>
+          <i class="pi pi-arrow-right cost-arrow"></i>
+          <span class="tag-native">NATIVE</span>
+          <strong class="cost-accent">${{ getTotal(p,'NATIVE') }}</strong>
+          <span class="saving-badge">-{{ getSaving(p) }}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="section-card">
+  <p class="section-title">Détail par service</p>
+  <p-table [value]="estimates" [loading]="loading" styleClass="p-datatable-sm p-datatable-gridlines">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Service</th><th>Provider</th><th>Mode</th>
+        <th style="text-align:right">Durée moy. (ms)</th>
+        <th style="text-align:right">Mémoire (MB)</th>
+        <th style="text-align:right">Coût compute</th>
+        <th style="text-align:right">Total USD/mois</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-e>
+      <tr>
+        <td>{{ e.service }}</td>
+        <td class="text-muted">{{ e.provider }}</td>
+        <td><span [class]="e.mode==='NATIVE'?'tag-native':'tag-jvm'">{{ e.mode }}</span></td>
+        <td style="text-align:right" class="mono text-muted">{{ e.avgDurationMs }}</td>
+        <td style="text-align:right" class="mono text-muted">{{ e.memoryMb }}</td>
+        <td style="text-align:right" class="mono text-muted">${{ e.computeCostUsd }}</td>
+        <td style="text-align:right">
+          <strong [class]="e.mode==='NATIVE'?'cost-accent':'cost-muted'" class="mono">${{ e.totalCostUsd }}</strong>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+

@@ -1,0 +1,43 @@
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-brand">
+      <div class="brand-mark"><i class="pi pi-bolt"></i></div>
+      <span class="brand-title">ZCS Dashboard</span>
+    </div>
+    <div class="cluster-status">
+      <span class="status-dot" [class.online]="clusterOnline" [class.offline]="!clusterOnline"></span>
+      <span class="status-label">zero-coldstart</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div *ngFor="let group of navGroups" class="nav-group">
+      <div class="nav-group-label">{{ group.label }}</div>
+      <div *ngFor="let item of group.items"
+        class="nav-item" [class.active]="isActive(item.route)"
+        (click)="navigate(item.route)">
+        <span *ngIf="isActive(item.route)" class="active-rail"></span>
+        <i [class]="item.icon"></i>
+        <span>{{ item.label }}</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-signal">
+    <div class="signal-card">
+      <div class="signal-label">Signal live</div>
+      <div class="waveform">
+        <span *ngFor="let bar of waveformBars; let i = index"
+          class="wave-bar" [class.accent]="i % 7 === 0"
+          [style.height.%]="bar" [style.animation-delay.s]="i * 0.04"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="nav-item" [class.active]="isActive('/settings')" (click)="navigate('/settings')">
+      <i class="pi pi-cog"></i><span>Parametres</span>
+    </div>
+  </div>
+</div>
+

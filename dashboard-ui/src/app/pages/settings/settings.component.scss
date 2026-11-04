@@ -1,0 +1,110 @@
+:host { display: block; }
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  max-width: 920px;
+}
+
+.settings-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.status-box {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  background: var(--zcs-surface-alt);
+  border: 1px solid var(--zcs-border-strong);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.online { background: var(--zcs-success); box-shadow: 0 0 6px rgba(60,224,160,0.55); }
+  &.offline { background: var(--zcs-danger); box-shadow: 0 0 6px rgba(251,113,133,0.55); }
+}
+
+.status-text {
+  font-size: 0.79rem;
+  color: var(--zcs-text-secondary);
+}
+
+.mono-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.2rem 0;
+}
+
+.toggle-label {
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--zcs-text-primary);
+}
+
+.toggle-hint {
+  font-size: 0.73rem;
+  color: var(--zcs-text-muted);
+  margin-top: 0.2rem;
+}
+
+.toggle-divider {
+  height: 1px;
+  background: var(--zcs-border);
+  margin: 0.85rem 0;
+}
+
+.threshold-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.threshold-value {
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.threshold-danger { color: var(--zcs-danger); }
+.threshold-accent { color: var(--zcs-accent); }
+
+.settings-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.saved-hint {
+  font-size: 0.78rem;
+  color: var(--zcs-text-muted);
+}
+
+::ng-deep .p-inputswitch.p-inputswitch-checked .p-inputswitch-slider {
+  background: var(--zcs-accent) !important;
+}
+
+::ng-deep .p-inputswitch .p-inputswitch-slider {
+  background: var(--zcs-border-strong) !important;
+}
+
+::ng-deep .p-inputswitch.p-inputswitch-checked .p-inputswitch-slider:before {
+  background: var(--zcs-accent-bg) !important;
+}

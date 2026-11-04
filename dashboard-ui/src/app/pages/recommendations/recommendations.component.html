@@ -1,0 +1,111 @@
+<div class="reco-layout">
+  <div class="reco-left">
+    <div class="section-card">
+      <p class="section-title">
+        <i class="pi pi-microchip-ai mr-2"></i>
+        Analyse IA des logs GraalVM
+        <span *ngIf="aiAvailable" class="ai-badge ml-2">
+          <span class="ai-dot"></span>Llama 3.2 actif
+        </span>
+        <span *ngIf="!aiAvailable" class="ai-badge offline ml-2">
+          <span class="ai-dot offline"></span>Ollama inactif
+        </span>
+      </p>
+
+      <label class="field-label">Service cible</label>
+      <p-dropdown [options]="services" [(ngModel)]="selectedService"
+        styleClass="w-full mb-3"></p-dropdown>
+
+      <label class="field-label">Logs de compilation GraalVM</label>
+      <textarea class="log-textarea" [(ngModel)]="logContent" rows="12"
+        placeholder="Collez ici les logs de compilation GraalVM...
+Ex:
+MissingReflectionRegistrationError: ...
+GC warning: 168.1s spent in 17 GCs...
+watchdog detected no activity...
+log4j NoSuchMethodException..."></textarea>
+
+      <div class="flex gap-2 mt-3">
+        <button pButton
+          label="Analyser avec l'IA"
+          icon="pi pi-sparkles"
+          class="p-button-success flex-1"
+          [disabled]="loading || !logContent.trim() || !aiAvailable"
+          [loading]="loading"
+          (click)="analyze()">
+        </button>
+        <button pButton
+          icon="pi pi-trash"
+          class="p-button-outlined"
+          pTooltip="Effacer"
+          [disabled]="loading"
+          (click)="clearAll()">
+        </button>
+      </div>
+
+      <div *ngIf="!aiAvailable" class="ai-warning mt-3">
+        <i class="pi pi-exclamation-triangle mr-2"></i>
+        Ollama n'est pas disponible. Lancez : <code>ollama serve</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="reco-right">
+    <div class="section-card h-full">
+      <p class="section-title">
+        <i class="pi pi-comment mr-2"></i>Analyse
+      </p>
+
+      <div *ngIf="!aiAnalysis && !loading" class="empty-state">
+        <div class="empty-icon"><i class="pi pi-sparkles"></i></div>
+        <div class="empty-title">Analyse IA prête</div>
+        <div class="empty-hint">
+          Collez vos logs de compilation GraalVM et lancez l'analyse.
+          Llama 3.2 identifiera les problèmes et proposera des solutions concrètes.
+        </div>
+      </div>
+
+      <div *ngIf="loading" class="loading-state">
+        <div class="thinking-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <p class="thinking-label">Llama 3.2 analyse vos logs...</p>
+      </div>
+
+      <!-- Recommandations par regles (precises) -->
+      <div *ngIf="rules.length > 0 && !loading" class="rules-section mb-3">
+        <div *ngFor="let r of rules" class="rule-card mb-2">
+          <div class="rule-header">
+            <span [class]="r.severity==='CRITICAL'?'tag-critical':r.severity==='WARNING'?'tag-warning':'tag-info'">
+              {{r.severity}}
+            </span>
+            <span class="rule-cat ml-2">{{r.category}}</span>
+            <span class="rule-desc ml-2">{{r.description}}</span>
+          </div>
+          <div class="rule-body">
+            <div class="rule-row">
+              <span class="rule-label">Actuel</span>
+              <code class="code-bad">{{r.currentValue}}</code>
+            </div>
+            <div class="rule-row">
+              <span class="rule-label">Recommandé</span>
+              <code class="code-good">{{r.recommendedValue}}</code>
+            </div>
+            <div *ngIf="r.buildArgToAdd" class="rule-row">
+              <span class="rule-label">buildArg</span>
+              <code class="code-accent">{{r.buildArgToAdd}}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Explication IA -->
+      <div *ngIf="aiAnalysis && !loading">
+        <p class="ai-label" *ngIf="rules.length > 0">
+          <i class="pi pi-sparkles mr-1"></i>Explication IA
+        </p>
+        <div class="ai-response" [innerHTML]="formatAnalysis(aiAnalysis)"></div>
+      </div>
+    </div>
+  </div>
+</div>

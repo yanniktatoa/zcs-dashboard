@@ -1,0 +1,82 @@
+<p-toast></p-toast>
+
+<div class="settings-grid">
+  <div class="settings-col">
+    <div class="section-card mb-3">
+      <p class="section-title">Connexion Kubernetes</p>
+      <label class="field-label">Namespace</label>
+      <input pInputText [(ngModel)]="config.namespace" class="w-full mb-3" placeholder="library">
+      <label class="field-label">Contexte kubeconfig</label>
+      <input pInputText [(ngModel)]="config.kubeContext" class="w-full mb-3" placeholder="k3d-zero-coldstart">
+
+      <label class="field-label">Statut de connexion</label>
+      <div class="status-box">
+        <span class="status-dot" [class.online]="clusterReachable" [class.offline]="!clusterReachable"></span>
+        <span class="status-text">
+          {{ clusterReachable ? 'Cluster joignable' : 'Cluster injoignable — vérifiez que k3d tourne' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <p class="section-title">Chemins du projet</p>
+      <label class="field-label">Chemin du projet source</label>
+      <input pInputText [(ngModel)]="config.basePath" class="w-full mb-3 mono-input" placeholder="/home/user/library-microservices">
+      <label class="field-label">Chemin des résultats benchmark</label>
+      <input pInputText [(ngModel)]="config.resultsPath" class="w-full mono-input" placeholder="/home/user/benchmark-results">
+    </div>
+  </div>
+
+  <div class="settings-col">
+    <div class="section-card mb-3">
+      <p class="section-title">Préférences d'affichage</p>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Rafraîchissement automatique</div>
+          <div class="toggle-hint">Actualise l'état du cluster toutes les 10s</div>
+        </div>
+        <p-inputSwitch [(ngModel)]="autoRefresh"></p-inputSwitch>
+      </div>
+      <div class="toggle-divider"></div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Notifications de régression</div>
+          <div class="toggle-hint">Alerte si le cold start dégrade de plus du seuil défini</div>
+        </div>
+        <p-inputSwitch [(ngModel)]="regressionAlerts"></p-inputSwitch>
+      </div>
+      <div class="toggle-divider"></div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Unités en millisecondes</div>
+          <div class="toggle-hint">Affiche les métriques en ms plutôt qu'en secondes</div>
+        </div>
+        <p-inputSwitch [(ngModel)]="useMilliseconds"></p-inputSwitch>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <p class="section-title">Seuils d'alerte</p>
+
+      <div class="threshold-row">
+        <label class="field-label">Régression cold start</label>
+        <span class="threshold-value threshold-danger">+{{ regressionThreshold }}%</span>
+      </div>
+      <p-slider [(ngModel)]="regressionThreshold" [min]="5" [max]="100" styleClass="w-full mb-3"></p-slider>
+
+      <div class="threshold-row">
+        <label class="field-label">Mémoire maximale native</label>
+        <span class="threshold-value threshold-accent">{{ maxNativeMemory }} Mi</span>
+      </div>
+      <p-slider [(ngModel)]="maxNativeMemory" [min]="50" [max]="400" styleClass="w-full"></p-slider>
+    </div>
+  </div>
+
+  <div class="settings-actions">
+    <button pButton [label]="saved ? 'Enregistré' : 'Sauvegarder'" [icon]="saved ? 'pi pi-check' : 'pi pi-save'"
+      class="p-button-success" [disabled]="loading" (click)="save()"></button>
+    <span *ngIf="saved" class="saved-hint">Configuration mise à jour</span>
+  </div>
+</div>
+

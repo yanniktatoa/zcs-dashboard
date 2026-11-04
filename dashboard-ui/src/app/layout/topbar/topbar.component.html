@@ -1,0 +1,27 @@
+<div class="topbar">
+  <div class="topbar-title-block">
+    <span class="topbar-eyebrow">Cluster / Vue d'ensemble</span>
+    <h1 class="page-title">{{ pageTitle }}</h1>
+  </div>
+  <div class="topbar-right">
+    <span class="summary-item">
+      <span class="dot-running"></span>
+      <span class="mono-val">{{ podsSummary.running }}/{{ podsSummary.total }}</span>
+      <span class="summary-label">pods</span>
+    </span>
+    <span class="summary-item">
+      <i class="pi pi-bolt summary-icon"></i>
+      <span class="mono-val">{{ podsSummary.native }}</span>
+      <span class="summary-label">natifs</span>
+    </span>
+    <button class="refresh-btn" (click)="refresh()" pTooltip="Actualiser">
+      <i class="pi pi-refresh"></i>
+    </button>
+    <span class="summary-item text-muted mono-val">{{ lastUpdate | date:'HH:mm:ss' }}</span>
+    <button class="theme-toggle" (click)="toggleTheme()" [attr.aria-label]="themeMode === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'">
+      <i [class]="themeMode === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+    </button>
+    <div class="avatar">YK</div>
+  </div>
+</div>
+

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loan-service
+  namespace: library
+  labels:
+    app: loan-service
+spec:
+  selector:
+    app: loan-service
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8083
+      targetPort: 8083
+      protocol: TCP

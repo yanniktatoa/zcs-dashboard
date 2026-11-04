@@ -1,0 +1,6 @@
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y libz1 && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY target/catalog-service .
+EXPOSE 8081
+ENTRYPOINT ["/app/catalog-service"]

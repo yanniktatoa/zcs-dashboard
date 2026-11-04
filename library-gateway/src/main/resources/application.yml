@@ -1,0 +1,76 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: library-gateway
+  cloud:
+    gateway:
+      # ──────────────────────────────────────────────────────────────
+      # Routes : chaque route mappe un préfixe externe /api/X/**
+      # vers le chemin interne /X/** du microservice correspondant.
+      # RewritePath supprime le préfixe /api/X avant le forwarding.
+      # ──────────────────────────────────────────────────────────────
+      routes:
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/users,/api/users/**
+          filters:
+            - StripPrefix=1
+
+        - id: catalog-service
+          uri: ${CATALOG_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/books,/api/books/**
+          filters:
+            - StripPrefix=1
+
+        - id: loan-service
+          uri: ${LOAN_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/loans,/api/loans/**
+          filters:
+            - StripPrefix=1
+
+      # Métriques par route disponibles sur /actuator/metrics/spring.cloud.gateway.requests
+      metrics:
+        enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # "gateway" expose la liste des routes via /actuator/gateway/routes
+        include: health,info,metrics,prometheus,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  info:
+    env:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL:http://localhost:9411}/api/v2/spans
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: API Gateway — point d'entrée unique du système Library Microservices

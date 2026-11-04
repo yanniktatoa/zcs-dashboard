@@ -1,0 +1,40 @@
+.metric-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--zcs-border);
+  font-size: 0.8rem;
+
+  &:last-child { border-bottom: none; }
+}
+
+.svc-name {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.79rem;
+  color: var(--zcs-text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.metric-val {
+  font-size: 0.78rem;
+  min-width: 80px;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--zcs-text-secondary);
+}
+
+.mini-log {
+  background: var(--zcs-log-bg);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.65rem;
+}
+
+.mini-log-line {
+  color: var(--zcs-text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
