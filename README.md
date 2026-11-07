@@ -26,29 +26,44 @@
 
 ## Résultats clés
 
-Mesures réalisées sur une seule machine (WSL2, 8 threads, ~11,7 Go de RAM, cluster k3d). Les valeurs sont indicatives et comparent JVM et Native dans des conditions identiques.
+Campagne de novembre 2026. Machine : Intel i5-12450H, WSL2 (8 vCPU, 12 Go), Docker 28.1.1, k3s v1.31.5, Oracle GraalVM 21.0.5. Chaque pod est limité à 1 cœur et 1 Gio, une réplique par service. JVM et Native sont construits depuis les mêmes sources. Valeurs : médiane de 10 essais (démarrage), de 5 relevés (mémoire), de 5 runs de 1 000 requêtes après 10 000 requêtes de chauffe (latence).
 
-| Métrique | JVM | Native | Écart |
+### Démarrage
+
+| Service | Startup applicatif (log Spring) | Cold start (appli prête) | Gain |
 |---|---|---|---|
-| Temps de démarrage moyen | 35,3 s | 2,54 s | ×13,9 |
-| Cold start Kubernetes moyen | 30,8 s | 2,09 s | ×14,8 |
-| Mémoire au repos (moyenne) | 279 Mi | 119 Mi | −57 % |
-| Taille d'image Docker (moyenne) | 348 Mo | 278 Mo | −20 % |
-| Latence moyenne (test A/B en direct) | — | — | Native 25 à 49 % plus rapide |
-| Débit sous charge continue | 41,8 req/s | 21,5 req/s | −49 % |
+| catalog-service | 19,84 s → 0,82 s | 20,74 s → 1,78 s | ×11,7 |
+| user-service | 19,47 s → 0,80 s | 20,41 s → 1,71 s | ×11,9 |
+| loan-service | 22,22 s → 1,40 s | 23,11 s → 2,37 s | ×9,8 |
+| library-gateway | 17,43 s → 0,20 s | 18,33 s → 1,08 s | ×17,0 |
 
-Le compromis est net : le natif résout le cold start et réduit l'empreinte mémoire, mais sa compilation AOT (sans JIT) pénalise le débit sous charge soutenue.
+### Mémoire au repos et taille d'image
 
-Démarrage par service :
+| Service | Mémoire JVM → Native | Image JVM → Native |
+|---|---|---|
+| catalog-service | 342 → 132 Mi (−61 %) | 359,7 → 324,7 Mo (−10 %) |
+| user-service | 309 → 130 Mi (−58 %) | 350,5 → 292,0 Mo (−17 %) |
+| loan-service | 309 → 119 Mi (−62 %) | 361,1 → 295,8 Mo (−18 %) |
+| library-gateway | 185 → 79 Mi (−57 %) | 317,8 → 187,4 Mo (−41 %) |
 
-| Service | JVM | Native | Gain |
+### Latence en régime établi (p50, ms)
+
+| Service | JVM | Native | Native / JVM |
 |---|---|---|---|
-| catalog-service | 42,1 s | 3,83 s | ×11,0 |
-| user-service | 31,6 s | 2,02 s | ×15,6 |
-| loan-service | 40,9 s | 2,83 s | ×14,5 |
-| library-gateway | 26,6 s | 1,48 s | ×18,0 |
+| catalog-service | 5,14 | 6,06 | ×1,18 |
+| user-service | 4,37 | 5,15 | ×1,18 |
+| loan-service | 5,23 | 6,10 | ×1,17 |
+| library-gateway | 7,22 | 7,44 | ×1,03 |
 
-Le simulateur de coût cloud (1 million d'invocations par mois, 5 % de cold start, tarifs 2026) estime l'écart à environ 135 $/mois en JVM contre 0,37 $/mois en natif sur Google Cloud Run et Azure Container Apps. Ce chiffre est une **simulation**, pas une facture réelle.
+Le natif atteint sa latence nominale dès les premières requêtes ; la JVM démarre environ 1,7 fois plus lente (catalog, 500 premières requêtes) puis converge après quelques milliers de requêtes et finit environ 15 % plus rapide sur les services à base de données. Le natif gagne donc au démarrage et en mémoire ; la JVM reste meilleure en régime établi prolongé.
+
+### Disponibilité vue par Kubernetes
+
+Avec les sondes d'origine (startupProbe à 30 s), le pod natif n'est « Ready » qu'à environ 30,7 s, contre 31,7 s en JVM : le gain est annulé. Avec les mêmes sondes rapides pour les deux modes (période de 1 s), le natif est Ready en 2 à 3 s contre 18 à 23 s en JVM (×6,7 à ×9,2). Les sondes d'un déploiement natif doivent être adaptées.
+
+### Débit
+
+Sur `user-service`, la JVM chauffée débite 622 req/s contre 449 pour le natif (−28 %). Sur les trois autres services, le débit sous 10 connexions est plafonné à environ 100 req/s pour les deux variantes, attribué au quota CPU de MySQL (limité sur 97 % des périodes pendant la charge) : ces mesures ne permettent pas de comparer JVM et Native.
 
 ---
 
@@ -266,13 +281,13 @@ Les scripts de `zero-coldstart-bench/` mesurent le temps de démarrage, le cold 
 
 ## Limites connues
 
-- **Environnement local** : le `dashboard-api` s'exécute sur l'hôte et lance des commandes shell. Il nécessite `kubectl`, `docker`, `k3d` et `mvn` dans le `PATH`.
-- **Périmètre des services** : benchmarks, historique, régression et métriques ciblent les 4 services de l'application Library (liste dans `application.yaml` et dans plusieurs services du backend). Les cibler sur une autre application demande d'adapter cette liste.
-- **Prometheus** : le client Prometheus est intégré avec repli automatique sur `kubectl top`. Prometheus n'étant pas déployé dans le cluster, les métriques CPU/RAM proviennent de `kubectl top`.
-- **Mesures** : réalisées sur une seule machine, avec un test de charge simple. Elles servent à comparer JVM et Native, pas à fixer des performances de production.
-- **Coûts cloud** : résultats de simulation, basés sur des grilles tarifaires et des hypothèses de trafic.
-- **IA** : Llama 3.2 3B explique des erreurs que le moteur de règles a déjà détectées. Il peut se tromper : les valeurs recommandées viennent des règles.
-
+- Le `dashboard-api` s'exécute sur l'hôte et lance des commandes shell (`kubectl`, `docker`, `k3d`, `mvn`).
+- Une seule machine, une réplique par service ; les pods sont limités à 1 cœur, ce qui influence la chauffe de la JVM.
+- La latence est mesurée à travers `kubectl port-forward` (coût constant pour les deux variantes) ; les écarts relatifs sont donc sous-estimés.
+- Le débit des services à base de données n'est pas exploitable (plafond MySQL).
+- Les gains de démarrage dépendent de la définition retenue (démarrage applicatif, cold start, Ready) ; les trois sont fournis.
+- Les coûts cloud sont une simulation fondée sur des hypothèses (5 % de cold start) à recalculer avec ces mesures.
+- Le client `kubectl` (v1.36) est hors du décalage de version supporté par le serveur (v1.31).
 ---
 
 ## Contexte académique 
