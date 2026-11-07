@@ -8,4 +8,5 @@ public class AbTestRequest {
     private int totalRequests;
     private double jvmSplitPercent;
     private String testPath; // ex: /actuator/health
+    private int warmupRequests = 200; // par variante, non comptabilisees
 }

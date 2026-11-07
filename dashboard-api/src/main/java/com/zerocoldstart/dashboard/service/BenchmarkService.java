@@ -26,6 +26,11 @@ public class BenchmarkService {
     private final Map<String, Boolean> runningBenchmarks = new ConcurrentHashMap<>();
     private final Map<String, String> currentRunDir = new ConcurrentHashMap<>();
 
+    private static final int TRIALS = 10;
+    private record Trial(int n, double startedInS, double processRunningS, double appUpS, double readyS) {}
+    private record StartInfo(long loggedAtMs, double startedInS, double processRunningS) {}
+    private final Map<String, java.util.List<Trial>> trialCache = new ConcurrentHashMap<>();
+
     public Flux<SseEvent> streamBenchmarkLogs(String mode) {
         Sinks.Many<SseEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
         benchmarkSinks.put(mode, sink);
@@ -90,7 +95,7 @@ public class BenchmarkService {
                 // Etape 5 - Cold start
                 emitBenchmark(mode, SseEvent.builder()
                         .type("PROGRESS")
-                        .message("5/5 - Mesure du cold start (3 essais par service)...")
+                        .message("5/5 - Mesure du cold start (10 essais par service)...")
                         .progress(75)
                         .timestamp(System.currentTimeMillis())
                         .build());
@@ -157,36 +162,111 @@ public class BenchmarkService {
         String[] services = {"catalog-service", "user-service", "loan-service", "library-gateway"};
         java.nio.file.Path startupDir = java.nio.file.Paths.get(resultsDir, "startup");
         java.nio.file.Files.createDirectories(startupDir);
+        trialCache.keySet().removeIf(k -> k.startsWith(mode + ":"));
 
         StringBuilder csv = new StringBuilder("service,startup_ms,started_at\n");
+        StringBuilder trialsCsv = new StringBuilder(
+                "service,trial,started_in_s,process_running_s,app_up_s,ready_s\n");
         int step = (progressEnd - progressStart) / services.length;
 
         for (int i = 0; i < services.length; i++) {
             String service = services[i];
             int svcProgress = progressStart + (i * step);
+            java.util.List<Trial> trials = runTrials(mode, service, svcProgress);
+            trialCache.put(mode + ":" + service, trials);
 
-            runShell("kubectl scale deployment " + service + " -n library --replicas=0 > /dev/null 2>&1");
-            runShell("kubectl wait --for=delete pod -l app=" + service + " -n library --timeout=60s > /dev/null 2>&1 || true");
-            Thread.sleep(2000);
-
-            long startNanos = System.nanoTime();
-            runShell("kubectl scale deployment " + service + " -n library --replicas=1 > /dev/null 2>&1");
-            double elapsedS = pollForStartedLog(service, startNanos, 90000);
-
-            long startupMs = elapsedS >= 0 ? Math.round(elapsedS * 1000) : -1;
+            for (Trial t : trials) {
+                trialsCsv.append(String.format(java.util.Locale.ROOT, "%s,%d,%.3f,%.3f,%.3f,%.3f\n",
+                        service, t.n(), t.startedInS(), t.processRunningS(), t.appUpS(), t.readyS()));
+            }
+            double med = median(trials.stream().mapToDouble(Trial::processRunningS).toArray());
+            long startupMs = trials.isEmpty() ? -1 : Math.round(med * 1000);
             csv.append(String.format("%s,%d,%s\n", service, startupMs,
                     java.time.LocalDateTime.now().toString()));
 
             emitBenchmark(mode, SseEvent.builder()
                     .type("LOG")
-                    .message("Startup " + service + ": " + startupMs + "ms")
-                    .progress(svcProgress)
+                    .message("Startup " + service + " (mediane de " + trials.size() + " essais) : " + startupMs + "ms")
+                    .progress(svcProgress + step)
                     .timestamp(System.currentTimeMillis())
                     .build());
         }
 
-        java.nio.file.Files.writeString(
-                startupDir.resolve("startup-" + mode + ".csv"), csv.toString());
+        java.nio.file.Files.writeString(startupDir.resolve("startup-" + mode + ".csv"), csv.toString());
+        java.nio.file.Files.writeString(startupDir.resolve("startup-trials-" + mode + ".csv"), trialsCsv.toString());
+    }
+
+    /**
+     * TRIALS cycles scale 0 -> 1 pour un service. Mesures par essai :
+     *  - started_in_s / process_running_s : valeurs du log Spring (« Started X in N seconds (process running for M) »)
+     *  - app_up_s : de la commande scale jusqu'a l'horodatage (ms) de cette ligne de log, independant du pas de scrutation
+     *  - ready_s  : de la commande scale jusqu'au pod Ready tel que vu par Kubernetes (inclut le cycle de la sonde)
+     */
+    private java.util.List<Trial> runTrials(String mode, String service, int progress) throws Exception {
+        java.util.List<Trial> trials = new java.util.ArrayList<>();
+        for (int n = 1; n <= TRIALS; n++) {
+            runShell("kubectl scale deployment " + service + " -n library --replicas=0 > /dev/null 2>&1");
+            runShell("kubectl wait --for=delete pod -l app=" + service + " -n library --timeout=60s > /dev/null 2>&1 || true");
+            Thread.sleep(2000);
+
+            long scaleMs = System.currentTimeMillis();
+            runShell("kubectl scale deployment " + service + " -n library --replicas=1 > /dev/null 2>&1");
+            StartInfo info = awaitStartedLog(service, 120000);
+            if (info == null) {
+                log.warn("Demarrage non detecte pour {} essai {}", service, n);
+                emitBenchmark(mode, SseEvent.builder().type("LOG")
+                        .message(service + " - essai " + n + "/" + TRIALS + " : timeout")
+                        .progress(progress).timestamp(System.currentTimeMillis()).build());
+                continue;
+            }
+            double appUpS = (info.loggedAtMs() - scaleMs) / 1000.0;
+
+            runShell("kubectl wait --for=condition=ready pod -l app=" + service + " -n library --timeout=120s > /dev/null 2>&1");
+            double readyS = (System.currentTimeMillis() - scaleMs) / 1000.0;
+
+            trials.add(new Trial(n, info.startedInS(), info.processRunningS(), appUpS, readyS));
+            emitBenchmark(mode, SseEvent.builder().type("LOG")
+                    .message(String.format(java.util.Locale.ROOT,
+                            "%s - essai %d/%d : appli prete en %.2fs, pod Ready en %.2fs",
+                            service, n, TRIALS, appUpS, readyS))
+                    .progress(progress).timestamp(System.currentTimeMillis()).build());
+            Thread.sleep(3000);
+        }
+        return trials;
+    }
+
+    private StartInfo awaitStartedLog(String service, long timeoutMs) throws Exception {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "(\\d{4}-\\d{2}-\\d{2}T[\\d:.]+(?:Z|[+-]\\d{2}:\\d{2}))\\s+\\w+\\s+\\d+ --- .*?Started \\S+ in ([\\d.]+) seconds(?: \\(process running for ([\\d.]+)\\))?");
+        while (System.currentTimeMillis() < deadline) {
+            ProcessBuilder pb = new ProcessBuilder("bash", "-c",
+                    "kubectl logs -n library -l app=" + service + " --tail=300 2>/dev/null");
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            String logs = new String(process.getInputStream().readAllBytes());
+            process.waitFor();
+
+            java.util.regex.Matcher m = pattern.matcher(logs);
+            StartInfo last = null;
+            while (m.find()) {
+                long at = java.time.OffsetDateTime.parse(m.group(1)).toInstant().toEpochMilli();
+                double in = Double.parseDouble(m.group(2));
+                double run = m.group(3) != null ? Double.parseDouble(m.group(3)) : in;
+                last = new StartInfo(at, in, run);
+            }
+            if (last != null) return last;
+            Thread.sleep(300);
+        }
+        return null;
+    }
+
+    private static double median(double[] values) {
+        if (values.length == 0) return 0;
+        double[] v = values.clone();
+        java.util.Arrays.sort(v);
+        int m = v.length / 2;
+        return v.length % 2 == 1 ? v[m] : (v[m - 1] + v[m]) / 2.0;
     }
 
     private void runLoadTest(String mode, int progressStart, int progressEnd) throws Exception {
@@ -229,54 +309,26 @@ public class BenchmarkService {
 
         for (int i = 0; i < services.length; i++) {
             String service = services[i];
-            int svcProgressStart = progressStart + (i * step);
-            int svcProgressEnd = svcProgressStart + step;
+            int svcProgress = progressStart + (i * step);
 
+            java.util.List<Trial> trials = trialCache.get(mode + ":" + service);
+            if (trials == null || trials.isEmpty()) {
+                trials = runTrials(mode, service, svcProgress);   // repli si l'etape startup n'a rien fourni
+            }
+            for (Trial t : trials) {
+                csvContent.append(String.format(java.util.Locale.ROOT, "%s,%d,%.3f,%s\n",
+                        service, t.n(), t.appUpS(), java.time.LocalDateTime.now().toString()));
+            }
+            double med = median(trials.stream().mapToDouble(Trial::appUpS).toArray());
             emitBenchmark(mode, SseEvent.builder()
                     .type("LOG")
-                    .message("Cold start de " + service + "...")
-                    .progress(svcProgressStart)
+                    .message(String.format(java.util.Locale.ROOT,
+                            "Cold start %s : mediane %.2fs sur %d essais", service, med, trials.size()))
+                    .progress(svcProgress + step)
                     .timestamp(System.currentTimeMillis())
                     .build());
-
-            for (int trial = 1; trial <= 3; trial++) {
-                // Scale down proprement et attendre la suppression du pod
-                runShell("kubectl scale deployment " + service + " -n library --replicas=0 > /dev/null 2>&1");
-                runShell("kubectl wait --for=delete pod -l app=" + service + " -n library --timeout=60s > /dev/null 2>&1 || true");
-                Thread.sleep(2000);
-
-                long startNanos = System.nanoTime();
-                runShell("kubectl scale deployment " + service + " -n library --replicas=1 > /dev/null 2>&1");
-
-                // Poll les logs du nouveau pod jusqu'a trouver la ligne "Started ... in"
-                double coldStartS = pollForStartedLog(service, startNanos, 60000);
-
-                if (coldStartS >= 0) {
-                    csvContent.append(String.format("%s,%d,%.2f,%s\n",
-                            service, trial, coldStartS,
-                            java.time.LocalDateTime.now().toString()));
-
-                    emitBenchmark(mode, SseEvent.builder()
-                            .type("LOG")
-                            .message(service + " - essai " + trial + " : " + String.format("%.2f", coldStartS) + "s")
-                            .progress(svcProgressStart + trial * 3)
-                            .timestamp(System.currentTimeMillis())
-                            .build());
-                } else {
-                    log.warn("Could not measure cold start for {} trial {}", service, trial);
-                    emitBenchmark(mode, SseEvent.builder()
-                            .type("LOG")
-                            .message(service + " - essai " + trial + " : timeout")
-                            .progress(svcProgressStart + trial * 3)
-                            .timestamp(System.currentTimeMillis())
-                            .build());
-                }
-
-                Thread.sleep(5000);
-            }
         }
 
-        // Sauvegarder le CSV
         java.nio.file.Path coldStartDir = java.nio.file.Paths.get(resultsDir, "coldstart");
         java.nio.file.Files.createDirectories(coldStartDir);
         java.nio.file.Files.writeString(
@@ -340,24 +392,30 @@ public class BenchmarkService {
     }
 
     private String buildMemoryCmd(String mode, String resultsDir) {
-        String[] services = {"catalog-service", "user-service", "loan-service", "library-gateway"};
-        StringBuilder cmd = new StringBuilder();
-        cmd.append("mkdir -p ").append(resultsDir).append("/memory; ");
-        cmd.append("echo 'service,phase,cpu_cores,memory_mi' > ")
-           .append(resultsDir).append("/memory/memory-").append(mode).append(".csv; ");
-        cmd.append("sleep 10; ");
-
-        for (String svc : services) {
-            cmd.append(String.format(
-                    "kubectl top pod -n library -l app=%s --no-headers 2>/dev/null | " +
-                    "awk '{gsub(/m/,\"\",$2); gsub(/Mi/,\"\",$3); print \"%s,idle,\"$2\",\"$3}' " +
-                    ">> %s/memory/memory-%s.csv; ",
-                    svc, svc, resultsDir, mode
-            ));
-        }
-
-        cmd.append("echo 'Mesure memoire idle terminee'");
-        return cmd.toString();
+        String script = """
+                R=@R@; M=@M@
+                SVCS="catalog-service user-service loan-service library-gateway"
+                mkdir -p $R/memory
+                echo 'service,sample,cpu_m,memory_mi' > $R/memory/memory-samples-$M.csv
+                echo 'service,phase,cpu_cores,memory_mi' > $R/memory/memory-$M.csv
+                for s in $SVCS; do kubectl rollout status deployment/$s -n library --timeout=180s > /dev/null 2>&1; done
+                echo 'Stabilisation : 90 s apres disponibilite des pods...'
+                sleep 90
+                for i in 1 2 3 4 5; do
+                  for s in $SVCS; do
+                    kubectl top pod -n library -l app=$s --no-headers 2>/dev/null | awk -v svc=$s -v n=$i '{gsub(/m/,"",$2); gsub(/Mi/,"",$3); print svc","n","$2","$3}' >> $R/memory/memory-samples-$M.csv
+                  done
+                  echo "Releve memoire $i/5"
+                  sleep 15
+                done
+                for s in $SVCS; do
+                  MEM=$(awk -F, -v svc=$s '$1==svc {print $4}' $R/memory/memory-samples-$M.csv | sort -n | awk '{a[NR]=$1} END{if(NR>0) print a[int((NR+1)/2)]}')
+                  CPU=$(awk -F, -v svc=$s '$1==svc {print $3}' $R/memory/memory-samples-$M.csv | sort -n | awk '{a[NR]=$1} END{if(NR>0) print a[int((NR+1)/2)]}')
+                  echo "$s,idle,${CPU:-0},${MEM:-0}" >> $R/memory/memory-$M.csv
+                done
+                echo 'Mesure memoire idle terminee (mediane de 5 releves)'
+                """;
+        return script.replace("@R@", resultsDir).replace("@M@", mode);
     }
 
     private void runShell(String command) throws Exception {

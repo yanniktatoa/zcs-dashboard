@@ -1,0 +1,5 @@
+service,tag,size_mb,created
+catalog-service,catalog-service:native,324.70,2026-07-18T14:36:29.673827933Z
+user-service,user-service:native,291.96,2026-07-17T03:11:50.540902555Z
+loan-service,loan-service:native,295.77,2026-07-21T17:11:39.522305116Z
+library-gateway,library-gateway:native,187.37,2026-07-18T17:12:34.723346887Z

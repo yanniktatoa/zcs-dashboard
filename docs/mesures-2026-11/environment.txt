@@ -1,0 +1,25 @@
+Fri Nov  6 16:31:02 GMT 2026
+CPU(s):                               8
+Model name:                           12th Gen Intel(R) Core(TM) i5-12450H
+8
+               total        used        free      shared  buff/cache   available
+Mem:            11Gi       4.4Gi       2.6Gi        20Mi       4.9Gi       7.3Gi
+Docker 28.1.1
+  gitVersion: v1.36.1
+  gitVersion: v1.31.5+k3s1
+java version "21.0.5" 2024-10-15 LTS
+NAME                        REQ_MEM   LIM_MEM
+catalog-mysql               512Mi     1Gi
+catalog-redis               128Mi     256Mi
+catalog-service             512Mi     1Gi
+kafka-broker                512Mi     1Gi
+library-gateway             256Mi     512Mi
+library-gateway-ab-jvm      <none>    <none>
+library-gateway-ab-native   <none>    <none>
+loan-mysql                  512Mi     1Gi
+loan-service                512Mi     1Gi
+user-mysql                  512Mi     1Gi
+user-redis                  128Mi     256Mi
+user-service                512Mi     1Gi
+zipkin                      256Mi     512Mi
+zookeeper                   256Mi     512Mi

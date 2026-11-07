@@ -1,0 +1,11 @@
+service,variante,rep,req_par_s,p50_ms,p99_ms,erreurs
+user-service,jvm,1,605.77,9.53ms,55.07ms,0
+user-service,jvm,2,617.65,8.84ms,53.42ms,0
+user-service,jvm,3,628.47,8.27ms,73.57ms,0
+user-service,jvm,4,622.08,8.27ms,74.40ms,0
+user-service,jvm,5,634.82,8.50ms,71.59ms,0
+user-service,native,1,456.75,10.50ms,80.06ms,0
+user-service,native,2,451.71,11.47ms,80.10ms,0
+user-service,native,3,449.33,11.09ms,79.95ms,0
+user-service,native,4,441.00,11.52ms,80.20ms,0
+user-service,native,5,446.31,11.48ms,80.28ms,0

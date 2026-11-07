@@ -1,0 +1,5 @@
+service,tag,size_mb,created
+catalog-service,catalog-service:jvm,359.67,2026-11-07T00:33:31.147778285Z
+user-service,user-service:jvm,350.50,2026-11-07T00:34:38.651794477Z
+loan-service,loan-service:jvm,361.14,2026-11-07T00:35:18.247905266Z
+library-gateway,library-gateway:jvm,317.81,2026-11-07T00:35:56.743814169Z

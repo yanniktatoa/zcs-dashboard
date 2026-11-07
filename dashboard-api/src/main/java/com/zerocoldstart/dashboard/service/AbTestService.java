@@ -72,6 +72,17 @@ public class AbTestService {
 
         Map<String, String> labels = Map.of("app", name, "ab-variant", variant, "ab-base", serviceName);
 
+        // Le pod A/B reprend la spec du deploiement reel (envFrom ConfigMap + Secret, sondes,
+        // ressources, volumes) ; seuls le nom du conteneur et l'image different.
+        Deployment base = client.apps().deployments().inNamespace(namespace).withName(serviceName).get();
+        if (base == null) {
+            throw new IllegalArgumentException("Deploiement de reference introuvable: " + serviceName);
+        }
+        io.fabric8.kubernetes.api.model.PodSpec podSpec =
+                new io.fabric8.kubernetes.api.model.PodSpecBuilder(base.getSpec().getTemplate().getSpec()).build();
+        podSpec.getContainers().get(0).setName(name);
+        podSpec.getContainers().get(0).setImage(image);
+
         Deployment deployment = new DeploymentBuilder()
                 .withNewMetadata()
                 .withName(name)
@@ -83,18 +94,7 @@ public class AbTestService {
                 .withNewSelector().withMatchLabels(labels).endSelector()
                 .withNewTemplate()
                 .withNewMetadata().withLabels(labels).endMetadata()
-                .withNewSpec()
-                .addNewContainer()
-                .withName(name)
-                .withImage(image)
-                .addNewPort().withContainerPort(port).endPort()
-                .withEnvFrom(
-                        new EnvFromSourceBuilder().withNewConfigMapRef(
-                                serviceName.replace("-service", "").replace("library-", "") + "-config", false
-                        ).build()
-                )
-                .endContainer()
-                .endSpec()
+                .withSpec(podSpec)
                 .endTemplate()
                 .endSpec()
                 .build();
@@ -103,7 +103,7 @@ public class AbTestService {
         if (exists) {
             client.apps().deployments().inNamespace(namespace).withName(name)
                     .edit(d -> {
-                        d.getSpec().getTemplate().getSpec().getContainers().get(0).setImage(image);
+                        d.getSpec().getTemplate().setSpec(podSpec);
                         return d;
                     });
         } else {
@@ -167,6 +167,13 @@ public class AbTestService {
                 for (int i = 0; i < total - jvmCount; i++) plan.add("NATIVE");
                 Collections.shuffle(plan);
 
+                // Rechauffement (JIT, connexions, caches) : non comptabilise
+                int warmup = Math.max(0, request.getWarmupRequests());
+                for (int w = 0; w < warmup; w++) {
+                    callAndMeasure("JVM", jvmLocalPort, path, 0);
+                    callAndMeasure("NATIVE", nativeLocalPort, path, 0);
+                }
+
                 for (int i = 0; i < plan.size(); i++) {
                     String variant = plan.get(i);
                     int port = variant.equals("JVM") ? jvmLocalPort : nativeLocalPort;
@@ -224,6 +231,11 @@ public class AbTestService {
                 .build();
     }
 
+    private static double percentile(List<Double> sorted, double p) {
+        int idx = (int) Math.ceil(sorted.size() * p) - 1;
+        return sorted.get(Math.max(0, Math.min(idx, sorted.size() - 1)));
+    }
+
     public List<AbTestStats> computeStats(List<AbTestResult> results) {
         List<AbTestStats> stats = new ArrayList<>();
         for (String variant : List.of("JVM", "NATIVE")) {
@@ -253,7 +265,9 @@ public class AbTestService {
                     .avgLatencyMs(Math.round(avg * 100.0) / 100.0)
                     .minLatencyMs(min)
                     .maxLatencyMs(max)
+                    .medianLatencyMs(percentile(latencies, 0.50))
                     .p95LatencyMs(p95)
+                    .p99LatencyMs(percentile(latencies, 0.99))
                     .build());
         }
         return stats;

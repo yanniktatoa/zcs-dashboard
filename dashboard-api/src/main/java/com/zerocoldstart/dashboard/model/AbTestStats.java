@@ -13,5 +13,7 @@ public class AbTestStats {
     private double avgLatencyMs;
     private double minLatencyMs;
     private double maxLatencyMs;
+    private double medianLatencyMs;
     private double p95LatencyMs;
+    private double p99LatencyMs;
 }

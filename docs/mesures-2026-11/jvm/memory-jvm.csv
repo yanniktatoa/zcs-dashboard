@@ -1,0 +1,5 @@
+service,phase,cpu_cores,memory_mi
+catalog-service,idle,7,342
+user-service,idle,4,309
+loan-service,idle,5,309
+library-gateway,idle,3,185
